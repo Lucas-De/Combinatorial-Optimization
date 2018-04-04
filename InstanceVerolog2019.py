@@ -43,6 +43,7 @@ class InstanceVerolog2019(base.BaseParser):
             self.toDay = toDay
             self.machineID = machineID
             self.amount = amount
+            self.totalSize=None
 
         def __repr__(self):
             return '%d %d %d %d %d %d' % (self.ID,self.customerLocID,self.fromDay,self.toDay,self.machineID,self.amount)
