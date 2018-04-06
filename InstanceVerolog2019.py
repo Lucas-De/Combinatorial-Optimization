@@ -137,7 +137,7 @@ class InstanceVerolog2019(base.BaseParser):
                                     len(RequestLine) == 6)
                     requestID = self._checkInt('Request ID', RequestLine[0] )
                     customerLocID = self._checkInt('Customer Location ID', RequestLine[1], 'for Request %d ' % requestID )
-                    self._checkError('Customer Location ID %d for request %d is larger than the number of locations (%d)' % (customerLocID, requestID, nrLocations), 0 <= customerLocID < nrLocations )
+                    self._checkError('Customer Location ID %d for request %d is larger than the number of locations (%d)' % (customerLocID, requestID, nrLocations), 0 <= customerLocID <= nrLocations )
                     fromDay = self._checkInt('Request from-day', RequestLine[2], 'for Request %d ' % requestID )
                     self._checkError('Request from-day %d is larger than the horizon (%d) for request %d' % (fromDay, self.Days, requestID), 0 < fromDay <= self.Days )
                     toDay = self._checkInt('Request to-day', RequestLine[3], 'for Request %d ' % requestID )

@@ -106,7 +106,6 @@ class Route(object):
             else: temp= self.seq[:i]+ self.seq[i+1:]
             self.seq=temp
 
-
         def add(self,request,i=None):
             if(i==len(self.seq) or i is None):
                 return self.addLast(request)
@@ -151,9 +150,9 @@ class Route(object):
                 self.dist=dist
                 self.load=load
                 self.seq.append(request)
-                return(True)
+                return (Valid, dist, load)
             else:
-                return(False)
+                return (Valid, dist, load)
 
         def addFirst(self,request):
             newFirst=request.customerLocID
@@ -167,9 +166,9 @@ class Route(object):
                 self.dist=dist
                 self.load=load
                 self.seq= [request]+self.seq
-                return(True)
+                return (Valid, dist, load)
             else:
-                return(False)
+                return (Valid, dist, load)
 
         def printSeq(self):
             print([i.ID for i in self.seq])
@@ -190,6 +189,40 @@ class Route(object):
             else:
                 return (False)
 
+        def mergeWith(self,mRoute,mergeType):
+            newSeq=None
+            if(mergeType==0):   newSeq=self.seq+mRoute.seq
+            elif(mergeType==1): newSeq=self.seq+list(reversed(mRoute.seq))
+            elif(mergeType==2): newSeq=list(reversed(self.seq))+mRoute.seq
+            elif(mergeType==3): newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
+            else: return False
+
+            dist=Distances[0][Locations[newSeq[0].customerLocID-1].ID-1]
+            load=0
+            for i in range(len(newSeq)-1):
+                fromReq=newSeq[i]
+                toReq=newSeq[i+1]
+                load+= fromReq.totalSize
+                dist+=Distances[Locations[fromReq.customerLocID-1].ID-1][Locations[toReq.customerLocID-1].ID-1]
+            load+=newSeq[-1].totalSize
+
+            Valid=self.Valid(dist, load)
+            if(Route.Lock==True): 
+                return (Valid, dist, load)
+            elif(Valid): 
+                print("Valid Merge")
+                self.dist=dist
+                self.load=load
+                self.seq=newSeq
+                return (Valid, dist, load)
+            else:
+                return (Valid, dist, load)
+
+
+
+
+
+
 def initRoutes():
     routes=[]
     for i in range(0,len(Requests)):
@@ -201,36 +234,7 @@ def initRoutes():
 
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
-# Routes= initRoutes()     #Creates a list of routes containing one Route for each request
 
-
-# r=Route()             #Creates a Route object with following attributes:
-                        #Route Distance: r.dist
-                        #Route Load (size of goods transported on the route) : r.load
-                        #Sequence of requests visited: r.seq
-
-# r.add(Requests[0])    #Adds Request[0] to the end of Route r if and only it meets the constraints.
-                        #Returns: (True if constraints are met, r.dist, r.load)
-
-# r.add(Requests[1],1)  #Adds Request[1] to position 1 in Route r if and only it meets the constraints.
-                        #Returns: (True if constraints are met, r.dist, r.load)
-
-# r.removeAt(0)         #Removes Request at position 3 in Route r
-                        #Returns: (removed Request, r.dist, r.load)
-
-
-
-# Route.Lock=True       #Locks all routes to their current states:
-                        #
-                        #add() returns the values of the updated route (True if constraints are met, r.dist, r.load) but does not update the route
-                        #
-                        #remove() returns the values of the updated route (removed Request, r.dist, r.load) but does not update the route
-                        #
-                        #Setting Route.Lock=True can be used to test different route updates without changing the cureent solution
-
-#r.printSeq()            #Prints route sequance
-
-#showMap(r)              #Shows a map of the Route
 
 def getSavingsList(day):
     availableRequests = []
@@ -295,6 +299,29 @@ def mergeRoutes(route1,route2):
 
     return (route1.Valid(route1.dist,route1.load))
 
-savingsAlgorithm()
+# savingsAlgorithm()
 
+r1=Route()
+r2=Route()
+r1.add(Requests[1])
+r1.add(Requests[2])
+
+r2.add(Requests[5])
+r2.add(Requests[0])
+r2.add(Requests[6])
+
+R=[r1,r2] #we build two routes
+
+showMap(R) #Lets see what its like before the merge
+
+Route.Lock=True
+r1.mergeWith(mRoute=r2, mergeType=0) #check validity/distcance while lock is on (this doesn't modify the route)
+                                     #mergeType can be 0,1,2 or 3. Each is a possible way to merge the two Routes
+                                     #This returns (Valid, dist, load) of the merged route
+Route.Lock=False
+
+r1.mergeWith(mRoute=r2, mergeType=0) #r1 becomes the merged routes
+R.remove(r2)                         #r2 must be therefore deleted
+
+showMap(R) #Lets see what its like after the merge
 
