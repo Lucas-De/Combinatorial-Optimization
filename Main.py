@@ -4,7 +4,7 @@ import numpy as np
 import math
 import copy
 
-File= "Instances/STUDENT005.txt"
+File= "Instances/STUDENT002.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -251,10 +251,10 @@ def getSavingsList(day):
 def savingsAlgorithm():
     routes = initRoutes()
 
-    for i in range(10):
+    for i in range(Days):
         currentDay = i + 1
         savings = getSavingsList(currentDay)
-        sortedSavings = sorted(savings, key=lambda x:x[2], reverse=True)
+        sortedSavings = sorted(savings, key=lambda x:x[2])
         #print(sortedSavings)
 
         while len(sortedSavings) > 0:
@@ -280,12 +280,7 @@ def savingsAlgorithm():
 
                 if validMerge:
                     routes.pop(r2Index)
-
-        for i in range(len(routes)):
-            print(currentDay)
-            routes[i].printSeq()
-        showMap(routes)
-
+    showMap(routes)
 
 def mergeRoutes(route1,route2):
     route1.Lock = route2.Lock = True
@@ -299,9 +294,6 @@ def mergeRoutes(route1,route2):
             route1.add(route2.seq[i])
 
     return (route1.Valid(route1.dist,route1.load))
-
-
-
 
 savingsAlgorithm()
 
