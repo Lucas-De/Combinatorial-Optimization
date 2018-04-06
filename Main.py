@@ -27,6 +27,34 @@ Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
 
+def showMap(RoutesList,Tech=False,ViewSize=False):
+    color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
+
+    if(Tech):
+        TechX= [Locations[Technicians[i].locationID-1].X for i in range(0,len(Technicians))]
+        TechY= [Locations[Technicians[i].locationID-1].Y for i in range(0,len(Technicians))]
+        plt.plot(TechX, TechY,'ro',marker='.',c='k')
+
+    ReqX= [Locations[Requests[i].customerLocID-1].X for i in range(0,len(Requests))]
+    ReqY= [Locations[Requests[i].customerLocID-1].Y for i in range(0,len(Requests))]
+    ReqCol= [color[Requests[i].machineID] for i in range(0,len(Requests))]
+
+    if(ViewSize):
+        ReqSize= [2.5**Requests[i].amount for i in range(0,len(Requests))]
+        plt.scatter(ReqX, ReqY, marker='s' ,c=ReqCol, s=ReqSize)
+    else:
+        plt.scatter(ReqX, ReqY, marker='s' ,c=ReqCol)
+
+    plt.scatter(Locations[0].X, Locations[0].Y,c='k', marker='*')
+
+    if(Route!=None):
+        for r in RoutesList:
+            x=[Locations[0].X]+[Locations[i-1].X for i in [req.customerLocID for req in r.seq]]+[Locations[0].X]
+            y=[Locations[0].Y]+[Locations[i-1].Y for i in [req.customerLocID for req in r.seq]]+[Locations[0].Y]
+            plt.plot(x,y,c='k',linewidth=0.5)
+
+    plt.show()
+
 
 def get_size_per_request():
     for i in range(0,len(Requests)):
@@ -41,29 +69,6 @@ def getDistMatrix():
             d[i][j]= math.ceil(math.sqrt((Locations[i].X-Locations[j].X)**2 + (Locations[i].Y-Locations[j].Y)**2 ))
     return d
 
-def showMap(route=None):
-
-    color=['b', 'g', 'c', 'm', 'y', 'r', 'w']
-
-    TechX= [Locations[Technicians[i].locationID-1].X for i in range(0,len(Technicians))]
-    TechY= [Locations[Technicians[i].locationID-1].Y for i in range(0,len(Technicians))]
-
-
-    ReqX= [Locations[Requests[i].customerLocID-1].X for i in range(0,len(Requests))]
-    ReqY= [Locations[Requests[i].customerLocID-1].Y for i in range(0,len(Requests))]
-    ReqCol= [color[Requests[i].machineID] for i in range(0,len(Requests))]
-    ReqSize= [2.5**Requests[i].amount for i in range(0,len(Requests))]
-
-    plt.scatter(ReqX, ReqY, marker='s' ,c=ReqCol, s=ReqSize)
-    plt.plot(TechX, TechY,'ro',marker='.',c='k')
-    plt.scatter(Locations[0].X, Locations[0].Y,c='k', marker='*')
-
-    if(Route!=None):
-        x=[Locations[0].X]+[Locations[i-1].X for i in [req.customerLocID for req in r.seq]]+[Locations[0].X]
-        y=[Locations[0].Y]+[Locations[i-1].Y for i in [req.customerLocID for req in r.seq]]+[Locations[0].Y]
-        plt.plot(x,y,c='k',linewidth=0.5)
-    
-    plt.show()
 
 class Route(object):
         Lock=False
@@ -83,16 +88,16 @@ class Route(object):
             if(i==len(self.seq)-1):
                 a= self.seq[i-1].customerLocID
                 b= self.seq[i].customerLocID
-                dist = self.dist - Distances[a][b] - Distances[b][1] + Distances[a][1]
+                dist = self.dist - Distances[a-1][b-1] - Distances[b-1][0] + Distances[a-1][0]
             elif(i==0):
                 b= self.seq[i].customerLocID
                 c= self.seq[i+1].customerLocID
-                self.dist = self.dist - Distances[1][b] - Distances[b][c] + Distances[1][c]
+                self.dist = self.dist - Distances[0][b-1] - Distances[b-1][c-1] + Distances[0][c-1]
             else:
                 a= self.seq[i-1].customerLocID
                 b= self.seq[i].customerLocID
                 c= self.seq[i+1].customerLocID
-                self.dist = self.dist - Distances[a][b] - Distances[b][c] + Distances[a][b]
+                self.dist = self.dist - Distances[a-1][b-1] - Distances[b-1][c-1] + Distances[a-1][b-1]
          
             if(Route.Lock==True): return (removed, dist, load)
 
@@ -111,7 +116,7 @@ class Route(object):
                 newLoc=request.customerLocID
                 a= self.seq[i-1].customerLocID
                 b= self.seq[i].customerLocID
-                dist= self.dist - Distances[a][b] + Distances[newLoc][a] + Distances[newLoc][b]
+                dist= self.dist - Distances[a-1][b-1] + Distances[newLoc-1][a-1] + Distances[newLoc-1][b-1]
                 load= self.load + request.totalSize
                 Valid=self.Valid(dist, load)
                 if(Route.Lock==True): return (Valid, dist, load)
@@ -135,9 +140,9 @@ class Route(object):
             newLast=request.customerLocID
             if len(self.seq)>0: 
                 oldLast=self.seq[-1].customerLocID
-                dist= self.dist + Distances[oldLast][newLast] + Distances[newLast][1] - Distances[1][oldLast]
+                dist= self.dist + Distances[oldLast-1][newLast-1] + Distances[newLast-1][0] - Distances[0][oldLast-1]
             else: 
-                dist= 2* Distances[newLast][1]
+                dist= 2* Distances[newLast-1][0]
             load=self.load + request.totalSize
             Valid=self.Valid(dist, load)
             if(Route.Lock==True): return (Valid, dist, load)
@@ -153,7 +158,7 @@ class Route(object):
         def addFirst(self,request):
             newFirst=request.customerLocID
             oldFirst=self.seq[0].customerLocID
-            dist= Distances[1][newFirst] + Distances[newFirst][oldFirst] - Distances[1][oldFirst]
+            dist= Distances[0][newFirst-1] + Distances[newFirst-1][oldFirst-1] - Distances[0][oldFirst-1]
             load=request.totalSize+self.load
             Valid=self.Valid(dist, load)
             if(Route.Lock==True): return (Valid, dist, load)
@@ -193,30 +198,26 @@ def initRoutes():
 
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
-Routes= initRoutes()       #Creates a list of routes containing one Route for each request
+# Routes= initRoutes()     #Creates a list of routes containing one Route for each request
 
 
-r=Route()               #Creates a Route object with following attributes:
+# r=Route()             #Creates a Route object with following attributes:
                         #Route Distance: r.dist
                         #Route Load (size of goods transported on the route) : r.load
                         #Sequence of requests visited: r.seq
 
-r.add(Requests[0])      #Adds Request[0] to the end of Route r if and only it meets the constraints.
+# r.add(Requests[0])    #Adds Request[0] to the end of Route r if and only it meets the constraints.
                         #Returns: (True if constraints are met, r.dist, r.load)
 
-r.add(Requests[1],1)    #Adds Request[1] to position 1 in Route r if and only it meets the constraints.
+# r.add(Requests[1],1)  #Adds Request[1] to position 1 in Route r if and only it meets the constraints.
                         #Returns: (True if constraints are met, r.dist, r.load)
 
-r.removeAt(0)           #Removes Request at position 3 in Route r
+# r.removeAt(0)         #Removes Request at position 3 in Route r
                         #Returns: (removed Request, r.dist, r.load)
-r.add(Requests[0])
-r.add(Requests[1])
-r.add(Requests[2])
-r.add(Requests[3])
-r.add(Requests[4])
 
 
-Route.Lock=True         #Locks all routes to their current states:
+
+# Route.Lock=True       #Locks all routes to their current states:
                         #
                         #add() returns the values of the updated route (True if constraints are met, r.dist, r.load) but does not update the route
                         #
@@ -247,7 +248,9 @@ def getSavingsList(day):
 def savingsAlgorithm():
     routes = initRoutes()
     routes[1].add(Requests[4])
-    print(routes[1].seq)
+    routes[1].printSeq()
+    showMap(routes)
+
 
     for i in range(Days):
         currentDay = i + 1
@@ -281,3 +284,5 @@ def savingsAlgorithm():
                 routes.append(newRoute)
 
 savingsAlgorithm()
+
+
