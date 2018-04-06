@@ -2,6 +2,7 @@ from InstanceVerolog2019 import passInstance
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import copy
 
 File= "Instances/STUDENT005.txt"
 Instance=passInstance(File,False)
@@ -34,10 +35,9 @@ def get_size_per_request():
 
 def getDistMatrix():
     nrLoc=len(Locations)
-    d= np.zeros((nrLoc+1, nrLoc+1))
-    d[0]= None
-    for i in range(1,nrLoc):
-        for j in range(1,nrLoc):
+    d= np.zeros((nrLoc, nrLoc))
+    for i in range(nrLoc):
+        for j in range(nrLoc):
             d[i][j]= math.ceil(math.sqrt((Locations[i].X-Locations[j].X)**2 + (Locations[i].Y-Locations[j].Y)**2 ))
     return d
 
@@ -169,13 +169,26 @@ class Route(object):
         def printSeq(self):
             print([i.ID for i in self.seq])
 
+        def containsRequest(self,requestID):
+            if requestID in self.seq:
+                return (True)
+            else:
+                return (False)
+
+        def isExtreme(self,requestID):
+            if self.seq[0] == requestID or self.seq[len(self.seq) - 1] == requestID:
+                return (True)
+            else:
+                return (False)
+
 def initRoutes():
     routes=[]
     for i in range(0,len(Requests)):
         r=Route()
         r.add(Requests[i])
+        r.lock = True
         routes.append(r)
-    return routes
+    return (routes)
 
 
 get_size_per_request()     #Assigns to each request the total size of the request
@@ -188,13 +201,13 @@ r=Route()               #Creates a Route object with following attributes:
                         #Route Load (size of goods transported on the route) : r.load
                         #Sequence of requests visited: r.seq
 
-r.add(Requests[0])      #Adds Request[0] to the end of Route r if and only it meets the constraints. 
+r.add(Requests[0])      #Adds Request[0] to the end of Route r if and only it meets the constraints.
                         #Returns: (True if constraints are met, r.dist, r.load)
 
-r.add(Requests[1],1)    #Adds Request[1] to position 1 in Route r if and only it meets the constraints. 
+r.add(Requests[1],1)    #Adds Request[1] to position 1 in Route r if and only it meets the constraints.
                         #Returns: (True if constraints are met, r.dist, r.load)
 
-r.removeAt(0)           #Removes Request at position 3 in Route r 
+r.removeAt(0)           #Removes Request at position 3 in Route r
                         #Returns: (removed Request, r.dist, r.load)
 r.add(Requests[0])
 r.add(Requests[1])
@@ -211,6 +224,60 @@ Route.Lock=True         #Locks all routes to their current states:
                         #
                         #Setting Route.Lock=True can be used to test different route updates without changing the cureent solution
 
-r.printSeq()            #Prints route sequance
+#r.printSeq()            #Prints route sequance
 
-showMap(r)              #Shows a map of the Route
+#showMap(r)              #Shows a map of the Route
+
+def getSavingsList(day):
+    availableRequests = []
+    nrReq = len(Requests)
+
+    for i in range(nrReq):
+        if Requests[i].fromDay <= day <= Requests[i].toDay:
+            availableRequests.append(Requests[i])
+
+    s = []
+    nrAvReq = len(availableRequests)
+    for i in range(nrAvReq):
+        for j in range(i,nrAvReq):
+            if i != j:
+                s.append([availableRequests[i].ID,availableRequests[j].ID,Distances[0][availableRequests[i].customerLocID - 1] + Distances[availableRequests[j].customerLocID - 1][0] - Distances[availableRequests[i].customerLocID - 1][availableRequests[j].customerLocID - 1]])
+    return (s)
+
+def savingsAlgorithm():
+    routes = initRoutes()
+    routes[1].add(Requests[4])
+    print(routes[1].seq)
+
+    for i in range(Days):
+        currentDay = i + 1
+        savings = getSavingsList(currentDay)
+        sortedSavings = sorted(savings, key=lambda x:x[2], reverse=True)
+        #print(sortedSavings)
+
+        while len(sortedSavings) > 0:
+            newLeg = sortedSavings.pop()
+            req1ID = newLeg[0]
+            req2ID = newLeg[1]
+
+            r1Index = r2Index = None
+            req1IsExtreme = req2IsExtreme = False
+
+            for i in range(len(routes)):
+                if routes[i].containsRequest(req1ID):
+                    r1Index = i
+                    if routes[i].isExtreme(req1ID):       #isExtreme() has to be made
+                        req1IsExtreme = True
+                        #print(req1IsExtreme)
+                if routes[i].containsRequest(req2ID):
+                    r2Index = i
+                    if routes[i].isExtreme(req2ID):
+                        req2IsExtreme = True
+
+            if (r1Index != r2Index) and req1IsExtreme and req2IsExtreme:
+                newRoute = merge(routes[r1Index],routes[r2Index])               #merge has to be made
+                routes.pop(r1Index)
+                routes.pop(r2Index)
+                routes.append(newRoute)
+
+savingsAlgorithm()
