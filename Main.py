@@ -175,13 +175,17 @@ class Route(object):
             print([i.ID for i in self.seq])
 
         def containsRequest(self,requestID):
-            if requestID in self.seq:
-                return (True)
-            else:
-                return (False)
+            contains = False
+            for i in range(len(self.seq)):
+                if self.seq[i].ID == requestID:
+                    contains = True
+            return (contains)
 
         def isExtreme(self,requestID):
-            if self.seq[0] == requestID or self.seq[len(self.seq) - 1] == requestID:
+            if self.seq[0].ID == requestID:
+                self.seq.reverse()
+                return (True)
+            elif self.seq[len(self.seq) - 1].ID == requestID:
                 return (True)
             else:
                 return (False)
@@ -191,7 +195,6 @@ def initRoutes():
     for i in range(0,len(Requests)):
         r=Route()
         r.add(Requests[i])
-        r.lock = True
         routes.append(r)
     return (routes)
 
@@ -247,12 +250,8 @@ def getSavingsList(day):
 
 def savingsAlgorithm():
     routes = initRoutes()
-    routes[1].add(Requests[4])
-    routes[1].printSeq()
-    showMap(routes)
 
-
-    for i in range(Days):
+    for i in range(10):
         currentDay = i + 1
         savings = getSavingsList(currentDay)
         sortedSavings = sorted(savings, key=lambda x:x[2], reverse=True)
@@ -269,19 +268,40 @@ def savingsAlgorithm():
             for i in range(len(routes)):
                 if routes[i].containsRequest(req1ID):
                     r1Index = i
-                    if routes[i].isExtreme(req1ID):       #isExtreme() has to be made
+                    if routes[i].isExtreme(req1ID):
                         req1IsExtreme = True
-                        #print(req1IsExtreme)
                 if routes[i].containsRequest(req2ID):
                     r2Index = i
                     if routes[i].isExtreme(req2ID):
                         req2IsExtreme = True
 
             if (r1Index != r2Index) and req1IsExtreme and req2IsExtreme:
-                newRoute = merge(routes[r1Index],routes[r2Index])               #merge has to be made
-                routes.pop(r1Index)
-                routes.pop(r2Index)
-                routes.append(newRoute)
+                validMerge = mergeRoutes(routes[r1Index],routes[r2Index])
+
+                if validMerge:
+                    routes.pop(r2Index)
+
+        for i in range(len(routes)):
+            print(currentDay)
+            routes[i].printSeq()
+        showMap(routes)
+
+
+def mergeRoutes(route1,route2):
+    route1.Lock = route2.Lock = True
+
+    for i in range(len(route2.seq)):
+        route1.add(route2.seq[i])
+
+    if route1.Valid(route1.dist,route1.load):
+        route1.Lock = route2.Lock = False
+        for i in range(len(route2.seq)):
+            route1.add(route2.seq[i])
+
+    return (route1.Valid(route1.dist,route1.load))
+
+
+
 
 savingsAlgorithm()
 
