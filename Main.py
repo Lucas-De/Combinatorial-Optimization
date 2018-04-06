@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import copy
+import random
 
-File= "Instances/STUDENT002.txt"
+File= "Instances/STUDENT008.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -15,10 +16,11 @@ TruckCapacity = Instance.TruckCapacity
 TruckMaxDistance = Instance.TruckMaxDistance
 TruckDistanceCost =  Instance.TruckDistanceCost           
 TruckDayCost = Instance.TruckDistanceCost
-TruckCost = Instance.TruckCost
+TruckCost = Instance.TruckCost 
 TechnicianDistanceCost =   Instance.TechnicianDistanceCost           
 TechnicianDayCost = Instance.TechnicianDayCost
 TechnicianCost = Instance.TechnicianCost
+
 
  
 Machines=Instance.Machines       #Machine objects have values: ID, size, idlePenalty
@@ -55,6 +57,11 @@ def showMap(RoutesList,Tech=False,ViewSize=False):
 
     plt.show()
 
+def updateRDist(fromHere):
+    for i in range(0,len(Requests)):
+        dist=Distances[fromHere][Requests[i].customerLocID-1]
+        Requests[i].dist=dist
+
 
 def get_size_per_request():
     for i in range(0,len(Requests)):
@@ -68,7 +75,6 @@ def getDistMatrix():
         for j in range(nrLoc):
             d[i][j]= math.ceil(math.sqrt((Locations[i].X-Locations[j].X)**2 + (Locations[i].Y-Locations[j].Y)**2 ))
     return d
-
 
 class Route(object):
         Lock=False
@@ -210,18 +216,12 @@ class Route(object):
             if(Route.Lock==True): 
                 return (Valid, dist, load)
             elif(Valid): 
-                print("Valid Merge")
                 self.dist=dist
                 self.load=load
                 self.seq=newSeq
                 return (Valid, dist, load)
             else:
                 return (Valid, dist, load)
-
-
-
-
-
 
 def initRoutes():
     routes=[]
@@ -231,97 +231,96 @@ def initRoutes():
         routes.append(r)
     return (routes)
 
-
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
+def getCosts(RouteList):
+    cost=0
+    for i in RouteList:
+        cost+=i.dist
+    return cost
 
-def getSavingsList(day):
-    availableRequests = []
-    nrReq = len(Requests)
 
-    for i in range(nrReq):
-        if Requests[i].fromDay <= day <= Requests[i].toDay:
-            availableRequests.append(Requests[i])
+def bestMergeType(r1,r2):
+    Route.Lock=True
+    bestType=None
+    bestDistance=math.inf
+    options=[]
 
-    s = []
-    nrAvReq = len(availableRequests)
-    for i in range(nrAvReq):
-        for j in range(i,nrAvReq):
-            if i != j:
-                s.append([availableRequests[i].ID,availableRequests[j].ID,Distances[0][availableRequests[i].customerLocID - 1] + Distances[availableRequests[j].customerLocID - 1][0] - Distances[availableRequests[i].customerLocID - 1][availableRequests[j].customerLocID - 1]])
-    return (s)
+    for i in range(4):
+        o=r1.mergeWith(mRoute=r2, mergeType=i) 
+        options.append((i,o[0],o[1]))
+    for opt in options:
+        if(opt[1]==False):
+            options.remove(opt)
+        elif(opt[2]<bestDistance):
+            bestDistance=opt[2]
+            bestType=opt[0]
+    Route.Lock=False
+    return (bestType, bestDistance)
 
+
+def mergeBestPair(routes):
+    options=[]
+    for i in range(len(routes)):
+        for j in range(i+1,len(routes)):
+            o=bestMergeType(routes[i],routes[j])
+            saving=routes[i].dist+routes[j].dist-o[1]
+            bestmergeType=o[0]
+            if(o[0]!=None):
+                options.append([i,j,bestmergeType,saving])
+    if(len(options)==0):
+        return False
+    bestPair=max(options,key=lambda x: x[3])
+    routes[bestPair[0]].mergeWith(routes[bestPair[1]],bestPair[2])
+    del routes[bestPair[1]]
+    return True
+
+#Savings Algorithm (Doesn't consider time windows): prints routing solution map
 def savingsAlgorithm():
     routes = initRoutes()
-
-    for i in range(Days):
-        currentDay = i + 1
-        savings = getSavingsList(currentDay)
-        sortedSavings = sorted(savings, key=lambda x:x[2])
-        #print(sortedSavings)
-
-        while len(sortedSavings) > 0:
-            newLeg = sortedSavings.pop()
-            req1ID = newLeg[0]
-            req2ID = newLeg[1]
-
-            r1Index = r2Index = None
-            req1IsExtreme = req2IsExtreme = False
-
-            for i in range(len(routes)):
-                if routes[i].containsRequest(req1ID):
-                    r1Index = i
-                    if routes[i].isExtreme(req1ID):
-                        req1IsExtreme = True
-                if routes[i].containsRequest(req2ID):
-                    r2Index = i
-                    if routes[i].isExtreme(req2ID):
-                        req2IsExtreme = True
-
-            if (r1Index != r2Index) and req1IsExtreme and req2IsExtreme:
-                validMerge = mergeRoutes(routes[r1Index],routes[r2Index])
-
-                if validMerge:
-                    routes.pop(r2Index)
+    possible=True
+    while(possible):
+        possible=mergeBestPair(routes)
+    print("Savings Alg Total Dist:",getCosts(routes))
     showMap(routes)
 
-def mergeRoutes(route1,route2):
-    route1.Lock = route2.Lock = True
+#QuickRoute (I made this up): Prints routing solution which considers time windows
+# This is a stochastic algorithm and requires being run multiple times to get a good solution
+def QuickRoute():
+    routes=[]
+    AvailableRequests= [ r for r in Requests]
+    OnDay= [[] for i in range(0,Days)]
+    for i in range(Days):
+        day=i+1
+        for req in Requests:
+            if(req.fromDay<=day and day<=req.toDay):
+                OnDay[i].append(req)
+    dayOrder= list(range(Days))
+    random.shuffle(dayOrder)
 
-    for i in range(len(route2.seq)):
-        route1.add(route2.seq[i])
+    for i in dayOrder:
+        while(len(OnDay[i])>0):
+            possible=True
+            r=Route()
+            updateRDist(0)
+            while(possible and len(OnDay[i])>0):
+                toAdd=min(OnDay[i],key=lambda x: x.dist)
+                possible=r.add(toAdd)[0]
+                if(possible):
+                    updateRDist(toAdd.customerLocID-1)
+                    AvailableRequests.remove(toAdd) 
+                    for j in range(Days):
+                        if toAdd in OnDay[j]:
+                            OnDay[j].remove(toAdd) 
+            routes.append(r)
+    print("Quick Route Total Dist:",getCosts(routes))
+    showMap(routes)
 
-    if route1.Valid(route1.dist,route1.load):
-        route1.Lock = route2.Lock = False
-        for i in range(len(route2.seq)):
-            route1.add(route2.seq[i])
 
-    return (route1.Valid(route1.dist,route1.load))
+savingsAlgorithm()
 
-# savingsAlgorithm()
+QuickRoute()
 
-r1=Route()
-r2=Route()
-r1.add(Requests[1])
-r1.add(Requests[2])
 
-r2.add(Requests[5])
-r2.add(Requests[0])
-r2.add(Requests[6])
-
-R=[r1,r2] #we build two routes
-
-showMap(R) #Lets see what its like before the merge
-
-Route.Lock=True
-r1.mergeWith(mRoute=r2, mergeType=0) #check validity/distcance while lock is on (this doesn't modify the route)
-                                     #mergeType can be 0,1,2 or 3. Each is a possible way to merge the two Routes
-                                     #This returns (Valid, dist, load) of the merged route
-Route.Lock=False
-
-r1.mergeWith(mRoute=r2, mergeType=0) #r1 becomes the merged routes
-R.remove(r2)                         #r2 must be therefore deleted
-
-showMap(R) #Lets see what its like after the merge
 
