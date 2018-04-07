@@ -285,19 +285,28 @@ def savingsAlgorithm():
     print("Savings Alg Total Dist:",getCosts(routes))
     showMap(routes)
 
+
 #QuickRoute (I made this up): Prints routing solution which considers time windows
 # This is a stochastic algorithm and requires being run multiple times to get a good solution
-def QuickRoute():
+def QuickRoute(method=1):
     routes=[]
     AvailableRequests= [ r for r in Requests]
     OnDay= [[] for i in range(0,Days)]
-    for i in range(Days):
-        day=i+1
-        for req in Requests:
-            if(req.fromDay<=day and day<=req.toDay):
-                OnDay[i].append(req)
-    dayOrder= list(range(Days))
-    random.shuffle(dayOrder)
+
+    if(method==1): #Lower Variance, but slightly lower mean distance
+        for i in range(Days):
+            day=i+1
+            for req in Requests:
+                if(req.fromDay<=day and day<=req.toDay):
+                    OnDay[i].append(req)
+        dayOrder= list(range(Days))
+        random.shuffle(dayOrder)
+  
+    elif(method==2): #Higher Variance, but slightly higher mean distance
+        schedules=[(list(range(r.fromDay,r.toDay)),r) for r in Requests]
+        for s in schedules:
+            OnDay[random.choice(s[0])-1].append(s[1])
+        dayOrder= list(range(Days))
 
     for i in dayOrder:
         while(len(OnDay[i])>0):
@@ -312,15 +321,30 @@ def QuickRoute():
                     AvailableRequests.remove(toAdd) 
                     for j in range(Days):
                         if toAdd in OnDay[j]:
+                            toAdd.day=(j+1)
                             OnDay[j].remove(toAdd) 
             routes.append(r)
-    print("Quick Route Total Dist:",getCosts(routes))
-    showMap(routes)
+    return(routes)
+
+def QuickRouteAlgorithm(iterations=1000,method=1):
+    optCost=math.inf
+    optRoutes=[]
+
+    for i in range(iterations):
+        routes=QuickRoute(method)
+        cost=getCosts(routes)
+        if(cost<optCost):
+            optCost=cost
+            optRoutes=routes
+            print(optCost)
+            showMap(routes)
+    return(routes)
 
 
-savingsAlgorithm()
 
-QuickRoute()
+# savingsAlgorithm()
 
+r=QuickRouteAlgorithm(1000,1)
+print(r[1].seq[0].day)
 
 
