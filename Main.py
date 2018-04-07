@@ -4,8 +4,9 @@ import numpy as np
 import math
 import copy
 import random
+import time
 
-File= "Instances/STUDENT008.txt"
+File= "Instances/CO2018_5.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -331,20 +332,22 @@ def QuickRouteAlgorithm(iterations=1000,method=1):
     optRoutes=[]
 
     for i in range(iterations):
+        print(i)
         routes=QuickRoute(method)
         cost=getCosts(routes)
         if(cost<optCost):
             optCost=cost
             optRoutes=routes
-            print(optCost)
-            showMap(routes)
     return(routes)
 
 
 
 # savingsAlgorithm()
-
-r=QuickRouteAlgorithm(1000,1)
-print(r[1].seq[0].day)
+t = time.time()
+r=QuickRouteAlgorithm(100,1)
+elapsed = time.time() - t
+print(elapsed)
+print(getCosts(r))
+showMap(r)
 
 
