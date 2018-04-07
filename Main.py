@@ -6,7 +6,7 @@ import copy
 import random
 import time
 
-File= "Instances/CO2018_2.txt"
+File= "Instances/STUDENT002.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -303,9 +303,11 @@ def QuickRoute(method=1):
         random.shuffle(dayOrder)
   
     elif(method==2): #Higher Variance, but slightly higher mean distance
-        schedules=[(list(range(r.fromDay,r.toDay)),r) for r in Requests]
+        schedules=[(list(range(r.fromDay,r.toDay+1)),r) for r in Requests]
         for s in schedules:
             OnDay[random.choice(s[0])-1].append(s[1])
+        # for i in OnDay:
+        #     print([j.ID for j in i])
         dayOrder= list(range(Days))
 
     for i in dayOrder:
@@ -321,23 +323,22 @@ def QuickRoute(method=1):
                     AvailableRequests.remove(toAdd) 
                     for j in range(Days):
                         if toAdd in OnDay[j]:
-                            toAdd.day=(j+1)
                             OnDay[j].remove(toAdd) 
+            r.day=i+1
             routes.append(r)
     return(routes)
 
-def QuickRouteAlgorithm(iterations=1000,method=1):
+def QuickRouteAlgorithm(iterations=1,method=2):
     optCost=math.inf
     optRoutes=[]
 
     for i in range(iterations):
-        print(i)
         routes=QuickRoute(method)
         cost=getCosts(routes)
         if(cost<optCost):
             optCost=cost
             optRoutes=routes
-    return(routes)
+    return(optRoutes)
 
 #Runs Savings
 # t = time.time()
@@ -349,10 +350,13 @@ def QuickRouteAlgorithm(iterations=1000,method=1):
 
 #Run QuickRoute
 t = time.time()
-r=QuickRouteAlgorithm(1,1)
+r=QuickRouteAlgorithm(100,2)
 elapsed = time.time() - t
 print(elapsed)
 print(getCosts(r))
+for b in r:
+    print(b.day,[c.ID for c in b.seq])
 showMap(r)
+
 
 
