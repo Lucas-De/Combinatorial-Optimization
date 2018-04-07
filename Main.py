@@ -6,7 +6,7 @@ import copy
 import random
 import time
 
-File= "Instances/CO2018_5.txt"
+File= "Instances/CO2018_2.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -283,8 +283,7 @@ def savingsAlgorithm():
     possible=True
     while(possible):
         possible=mergeBestPair(routes)
-    print("Savings Alg Total Dist:",getCosts(routes))
-    showMap(routes)
+    return(routes)
 
 
 #QuickRoute (I made this up): Prints routing solution which considers time windows
@@ -340,11 +339,17 @@ def QuickRouteAlgorithm(iterations=1000,method=1):
             optRoutes=routes
     return(routes)
 
+#Runs Savings
+# t = time.time()
+# routes=savingsAlgorithm()
+# elapsed = time.time() - t
+# print(elapsed)
+# print("Savings Alg Total Dist:",getCosts(routes))
+# showMap(routes)
 
-
-# savingsAlgorithm()
+#Run QuickRoute
 t = time.time()
-r=QuickRouteAlgorithm(100,1)
+r=QuickRouteAlgorithm(1,1)
 elapsed = time.time() - t
 print(elapsed)
 print(getCosts(r))
