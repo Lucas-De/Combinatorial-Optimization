@@ -79,19 +79,31 @@ def getDistMatrix():
 
 class Route(object):
         Lock=False
-        def __init__(self):
+        def __init__(self, routeType, technician=None):
             self.seq = []
             self.dist = 0
-            self.load = 0
 
-        def removeAt(self,i):
+            if routeType == 'truck':
+                self.load = 0
+            elif routeType == 'technician':
+                self.nrMachines = 0
+                self.technician = technician
 
-            removed=self.seq[i]
-            cancelledLoad=removed.totalSize
-            self.load = self.load - cancelledLoad
+        def removeAt(self,i,routeType):
+            if routeType == 'truck':
+                removed=self.seq[i]
+                cancelledLoad=removed.totalSize
+                self.load = self.load - cancelledLoad
+            elif routeType == 'technician':
+                self.nrMachines = self.nrMachines - 1
+
             if(len(self.seq)==1):
                 self.seq=[]
-                return (removed, 0, self.load)
+                if routeType == 'truck':
+                    return (removed, 0, self.load)
+                elif routeType == 'technician':
+                    return (removed, 0, self.nrMachines)
+
             if(i==len(self.seq)-1):
                 a= self.seq[i-1].customerLocID
                 b= self.seq[i].customerLocID
@@ -106,76 +118,129 @@ class Route(object):
                 c= self.seq[i+1].customerLocID
                 self.dist = self.dist - Distances[a-1][b-1] - Distances[b-1][c-1] + Distances[a-1][b-1]
          
-            if(Route.Lock==True): return (removed, dist, load)
+            if(Route.Lock==True):
+                if routeType == 'truck':
+                    return (removed, dist, self.load)
+                elif routeType == 'technician':
+                    return (removed, dist, self.nrMachines)
 
             if(i==len(self.seq)-1): temp =self.seq[:i]
             elif(i==0): temp =self.seq[1:]
             else: temp= self.seq[:i]+ self.seq[i+1:]
             self.seq=temp
 
-        def add(self,request,i=None):
+        def add(self,request,routeType,i=None):
             if(i==len(self.seq) or i is None):
-                return self.addLast(request)
+                return self.addLast(request,routeType)
             elif(i==0):
-                return self.addFirst(request)
+                return self.addFirst(request,routeType)
             else:
                 newLoc=request.customerLocID
                 a= self.seq[i-1].customerLocID
                 b= self.seq[i].customerLocID
                 dist= self.dist - Distances[a-1][b-1] + Distances[newLoc-1][a-1] + Distances[newLoc-1][b-1]
-                load= self.load + request.totalSize
-                Valid=self.Valid(dist, load)
-                if(Route.Lock==True): return (Valid, dist, load)
 
-                if(Valid): 
-                    self.dist=dist
-                    self.load=load
-                    temp =self.seq[:i] + [request] + self.seq[i:]
-                    self.seq=temp
-                    return (Valid, dist, load)
-                else:
-                    return (Valid, dist, load)
+                if routeType == 'truck':
+                    load= self.load + request.totalSize
+                    Valid=self.validTruckRoute(dist, load)
+                    if(Route.Lock==True): return (Valid, dist, load)
 
-        def Valid(self,dist,load):
+                    if(Valid):
+                        self.dist=dist
+                        self.load=load
+                        temp =self.seq[:i] + [request] + self.seq[i:]
+                        self.seq=temp
+                        return (Valid, dist, load)
+                    else:
+                        return (Valid, dist, load)
+                elif routeType == 'technician':
+                    nrMachines = self.nrMachines + 1
+                    Valid = self.validTechRoute(dist, nrMachines)
+                    if (Route.Lock == True): return (Valid, dist, nrMachines)
+
+                    if (Valid):
+                        self.dist = dist
+                        self.nrMachines = nrMachines
+                        temp = self.seq[:i] + [request] + self.seq[i:]
+                        self.seq = temp
+                        return (Valid, dist, nrMachines)
+                    else:
+                        return (Valid, dist, nrMachines)
+
+        def validTruckRoute(self,dist,load):
             if( dist>TruckMaxDistance  or  load> TruckCapacity):
                 return(False)
             else:
                 return(True)
 
-        def addLast(self,request): 
+        def validTechRoute(self,dist,nrMachines):
+            if( dist>self.technician.maxDayDistance  or  nrMachines> self.technician.maxNrInstallations):
+                return(False)
+            else:
+                return(True)
+
+        def addLast(self,request,routeType):
             newLast=request.customerLocID
             if len(self.seq)>0: 
                 oldLast=self.seq[-1].customerLocID
                 dist= self.dist + Distances[oldLast-1][newLast-1] + Distances[newLast-1][0] - Distances[0][oldLast-1]
             else: 
                 dist= 2* Distances[newLast-1][0]
-            load=self.load + request.totalSize
-            Valid=self.Valid(dist, load)
-            if(Route.Lock==True): return (Valid, dist, load)
 
-            if(Valid): 
-                self.dist=dist
-                self.load=load
-                self.seq.append(request)
-                return (Valid, dist, load)
-            else:
-                return (Valid, dist, load)
+            if routeType == 'truck':
+                load=self.load + request.totalSize
+                Valid=self.validTruckRoute(dist, load)
+                if(Route.Lock==True): return (Valid, dist, load)
 
-        def addFirst(self,request):
+                if(Valid):
+                    self.dist=dist
+                    self.load=load
+                    self.seq.append(request)
+                    return (Valid, dist, load)
+                else:
+                    return (Valid, dist, load)
+            elif routeType == 'technician':
+                nrMachines = self.nrMachines + 1
+                Valid = self.validTechRoute(dist, nrMachines)
+                if (Route.Lock == True): return (Valid, dist, nrMachines)
+
+                if (Valid):
+                    self.dist = dist
+                    self.nrMachines = nrMachines
+                    self.seq.append(request)
+                    return (Valid, dist, nrMachines)
+                else:
+                    return (Valid, dist, nrMachines)
+
+        def addFirst(self,request,routeType):
             newFirst=request.customerLocID
             oldFirst=self.seq[0].customerLocID
             dist= Distances[0][newFirst-1] + Distances[newFirst-1][oldFirst-1] - Distances[0][oldFirst-1]
-            load=request.totalSize+self.load
-            Valid=self.Valid(dist, load)
-            if(Route.Lock==True): return (Valid, dist, load)
 
-            if(Valid): 
-                self.dist=dist
-                self.load=load
-                self.seq= [request]+self.seq
-                return (Valid, dist, load)
-            else:
-                return (Valid, dist, load)
+            if routeType == 'truck':
+                load=request.totalSize+self.load
+                Valid=self.validTruckRoute(dist, load)
+                if(Route.Lock==True): return (Valid, dist, load)
+
+                if(Valid):
+                    self.dist=dist
+                    self.load=load
+                    self.seq= [request]+self.seq
+                    return (Valid, dist, load)
+                else:
+                    return (Valid, dist, load)
+            elif routeType == 'technician':
+                nrMachines = self.nrMachines + 1
+                Valid = self.validTechRoute(dist, nrMachines)
+                if (Route.Lock == True): return (Valid, dist, nrMachines)
+
+                if (Valid):
+                    self.dist = dist
+                    self.nrMachines = nrMachines
+                    self.seq = [request] + self.seq
+                    return (Valid, dist, nrMachines)
+                else:
+                    return (Valid, dist, nrMachines)
 
         def printSeq(self):
             print([i.ID for i in self.seq])
@@ -196,7 +261,7 @@ class Route(object):
             else:
                 return (False)
 
-        def mergeWith(self,mRoute,mergeType):
+        def mergeWith(self,routeType,mRoute,mergeType):
             newSeq=None
             if(mergeType==0):   newSeq=self.seq+mRoute.seq
             elif(mergeType==1): newSeq=self.seq+list(reversed(mRoute.seq))
@@ -205,30 +270,32 @@ class Route(object):
             else: return False
 
             dist=Distances[0][Locations[newSeq[0].customerLocID-1].ID-1]
-            load=0
-            for i in range(len(newSeq)-1):
-                fromReq=newSeq[i]
-                toReq=newSeq[i+1]
-                load+= fromReq.totalSize
-                dist+=Distances[Locations[fromReq.customerLocID-1].ID-1][Locations[toReq.customerLocID-1].ID-1]
-            load+=newSeq[-1].totalSize
 
-            Valid=self.Valid(dist, load)
-            if(Route.Lock==True): 
-                return (Valid, dist, load)
-            elif(Valid): 
-                self.dist=dist
-                self.load=load
-                self.seq=newSeq
-                return (Valid, dist, load)
-            else:
-                return (Valid, dist, load)
+            if routeType == 'truck':
+                load=0
+                for i in range(len(newSeq)-1):
+                    fromReq=newSeq[i]
+                    toReq=newSeq[i+1]
+                    load+= fromReq.totalSize
+                    dist+=Distances[Locations[fromReq.customerLocID-1].ID-1][Locations[toReq.customerLocID-1].ID-1]
+                load+=newSeq[-1].totalSize
 
-def initRoutes():
+                Valid=self.validTruckRoute(dist, load)
+                if(Route.Lock==True):
+                    return (Valid, dist, load)
+                elif(Valid):
+                    self.dist=dist
+                    self.load=load
+                    self.seq=newSeq
+                    return (Valid, dist, load)
+                else:
+                    return (Valid, dist, load)
+
+def initRoutes(routeType):
     routes=[]
     for i in range(0,len(Requests)):
-        r=Route()
-        r.add(Requests[i])
+        r=Route(routeType)
+        r.add(Requests[i],routeType)
         routes.append(r)
     return (routes)
 
@@ -242,14 +309,14 @@ def getCosts(RouteList):
     return cost
 
 
-def bestMergeType(r1,r2):
+def bestMergeType(r1,r2,routeType):
     Route.Lock=True
     bestType=None
     bestDistance=math.inf
     options=[]
 
     for i in range(4):
-        o=r1.mergeWith(mRoute=r2, mergeType=i) 
+        o=r1.mergeWith(routeType,mRoute=r2, mergeType=i)
         options.append((i,o[0],o[1]))
     for opt in options:
         if(opt[1]==False):
@@ -261,11 +328,11 @@ def bestMergeType(r1,r2):
     return (bestType, bestDistance)
 
 
-def mergeBestPair(routes):
+def mergeBestPair(routes,routeType):
     options=[]
     for i in range(len(routes)):
         for j in range(i+1,len(routes)):
-            o=bestMergeType(routes[i],routes[j])
+            o=bestMergeType(routes[i],routes[j],routeType)
             saving=routes[i].dist+routes[j].dist-o[1]
             bestmergeType=o[0]
             if(o[0]!=None):
@@ -273,18 +340,49 @@ def mergeBestPair(routes):
     if(len(options)==0):
         return False
     bestPair=max(options,key=lambda x: x[3])
-    routes[bestPair[0]].mergeWith(routes[bestPair[1]],bestPair[2])
+    routes[bestPair[0]].mergeWith(routeType,routes[bestPair[1]],bestPair[2])
     del routes[bestPair[1]]
     return True
 
 #Savings Algorithm (Doesn't consider time windows): prints routing solution map
 def savingsAlgorithm():
-    routes = initRoutes()
+    routes = initRoutes('truck')
     possible=True
     while(possible):
-        possible=mergeBestPair(routes)
+        possible=mergeBestPair(routes,'truck')
     return(routes)
 
+def techniciansSchedule(machineList):
+    availableTech = Technicians
+
+    for i in range(len(machineList)):
+        deliveredMachines = machineList[i]                      #(machine,locationID)
+
+        for j in range(len(availableTech)):
+            technician = availableTech[i]
+            nClosestMach = computeClosestMach(technician,deliveredMachines)
+            avgDistance = computeAVG(nClosestMach[:,1])
+            
+
+
+def computeClosestMach(technician,machines):
+    distList = []
+
+    for i in range(len(machines)):
+        dist = Distances[technician.locationID - 1][machines[1] - 1]
+        distList.append(i,dist)
+    sortedDist = sorted(distList,key=lambda x:x[1])
+    n = technician.maxNrInstallations
+
+    return sortedDist[:n]
+
+def computeAVG(distList):
+    sum = 0
+    n = len(distList)
+    for i in range(n):
+        sum = sum + distList[i]
+
+    return (sum/n)
 
 #QuickRoute (I made this up): Prints routing solution which considers time windows
 # This is a stochastic algorithm and requires being run multiple times to get a good solution
@@ -341,22 +439,22 @@ def QuickRouteAlgorithm(iterations=1,method=2):
     return(optRoutes)
 
 #Runs Savings
-# t = time.time()
-# routes=savingsAlgorithm()
-# elapsed = time.time() - t
-# print(elapsed)
-# print("Savings Alg Total Dist:",getCosts(routes))
-# showMap(routes)
-
-#Run QuickRoute
 t = time.time()
-r=QuickRouteAlgorithm(100,2)
+routes=savingsAlgorithm()
 elapsed = time.time() - t
 print(elapsed)
-print(getCosts(r))
-for b in r:
-    print(b.day,[c.ID for c in b.seq])
-showMap(r)
+print("Savings Alg Total Dist:",getCosts(routes))
+showMap(routes)
+
+#Run QuickRoute
+#t = time.time()
+#r=QuickRouteAlgorithm(100,2)
+#elapsed = time.time() - t
+#print(elapsed)
+#print(getCosts(r))
+#for b in r:
+#    print(b.day,[c.ID for c in b.seq])
+#showMap(r)
 
 
 
