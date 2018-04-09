@@ -406,18 +406,16 @@ def QuickRoute(method=1):
         schedules=[(list(range(r.fromDay,r.toDay+1)),r) for r in Requests]
         for s in schedules:
             OnDay[random.choice(s[0])-1].append(s[1])
-        # for i in OnDay:
-        #     print([j.ID for j in i])
         dayOrder= list(range(Days))
 
     for i in dayOrder:
         while(len(OnDay[i])>0):
             possible=True
-            r=Route()
+            r=Route('truck')
             updateRDist(0)
             while(possible and len(OnDay[i])>0):
                 toAdd=min(OnDay[i],key=lambda x: x.dist)
-                possible=r.add(toAdd)[0]
+                possible=r.add(toAdd,'truck')[0]
                 if(possible):
                     updateRDist(toAdd.customerLocID-1)
                     AvailableRequests.remove(toAdd) 
@@ -441,22 +439,22 @@ def QuickRouteAlgorithm(iterations=1,method=2):
     return(optRoutes)
 
 #Runs Savings
+# t = time.time()
+# routes=savingsAlgorithm()
+# elapsed = time.time() - t
+# print(elapsed)
+# print("Savings Alg Total Dist:",getCosts(routes))
+# showMap(routes)
+
+# Run QuickRoute
 t = time.time()
-routes=savingsAlgorithm()
+r=QuickRouteAlgorithm(100,2)
 elapsed = time.time() - t
 print(elapsed)
-print("Savings Alg Total Dist:",getCosts(routes))
-showMap(routes)
-
-#Run QuickRoute
-#t = time.time()
-#r=QuickRouteAlgorithm(100,2)
-#elapsed = time.time() - t
-#print(elapsed)
-#print(getCosts(r))
-#for b in r:
-#    print(b.day,[c.ID for c in b.seq])
-#showMap(r)
+print(getCosts(r))
+for b in r:
+   print(b.day,[c.ID for c in b.seq])
+showMap(r)
 
 
 
