@@ -6,7 +6,7 @@ import copy
 import random
 import time
 
-File= "Instances/STUDENT004.txt"
+File= "Instances/STUDENT002.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -415,6 +415,9 @@ def techniciansSchedule(requestList):
                 finalRoute = getLargestRoute(routes)
                 dailyRouteList.append(finalRoute)                       #append daily routes to list
 
+                print("day", i + 2)
+                finalRoute.printSeq()
+
                 for k in range(len(finalRoute.seq)):
                     currentRequests.remove(finalRoute.seq[k])
 
@@ -548,25 +551,36 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 #showMap(routes)
 
 # Run QuickRoute
-#t = time.time()
-#r=QuickRouteAlgorithm(100,2)
-#elapsed = time.time() - t
-#print(elapsed)
-#print(getCosts(r))
+t = time.time()
+routes=QuickRouteAlgorithm(100,2)
+elapsed = time.time() - t
+print(elapsed)
+print(getCosts(routes))
 #for b in r:
 #   print(b.day,[c.ID for c in b.seq])
 #showMap(r)
 
+requestList = []
+for i in range(Days):
+    currDayList = []
+    for j in range(len(routes)):
+        currRoute = routes[j]
+        if currRoute.day == (i + 1):
+            for l in range(len(currRoute.seq)):
+                currDayList.append(currRoute.seq[l])
+    requestList.append(currDayList)
 
+'''
 requestList = []
 requestList.append(Requests[0:4])
 requestList.append(Requests[4:9])
 requestList.append(Requests[9:14])
 requestList.append(Requests[14:22])
 requestList.append(Requests[22:30])
-
+'''
 
 for i in range(Days):
     requestList.append(None)
 
+print("technicians schedule")
 finalRoutes = techniciansSchedule(requestList)
