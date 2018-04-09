@@ -358,12 +358,14 @@ def techniciansSchedule(machineList):
     for i in range(len(machineList)):
         deliveredMachines = machineList[i]                      #(machine,locationID)
 
+        techList = []
         for j in range(len(availableTech)):
             technician = availableTech[i]
             nClosestMach = computeClosestMach(technician,deliveredMachines)
             avgDistance = computeAVG(nClosestMach[:,1])
-            
+            techList.append(technician,nClosestMach,avgDistance)
 
+        sortedTechList = sorted(techList,key=lambda x:x[2])
 
 def computeClosestMach(technician,machines):
     distList = []
