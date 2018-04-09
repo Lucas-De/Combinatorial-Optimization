@@ -64,10 +64,24 @@ class InstanceVerolog2019(base.BaseParser):
             self.maxDayDistance = maxDayDistance
             self.maxNrInstallations = maxNrInstallations
             self.capabilities = capabilities
+            self.prevWorkDays = 0
+            self.breakDaysLeft = 0
 
         def __repr__(self):
             return '%d %d %d %d %s' % (self.ID,self.locationID,self.maxDayDistance,self.maxNrInstallations, ' '.join(str(x) for x in self.capabilities))
-    
+
+        def stillAvailable(self):
+            if self.prevWorkDays < 4:
+                return True
+            else:
+                return False
+
+        def availableAgain(self):
+            if self.breakDaysLeft == 0:
+                return True
+            else:
+                return False
+
     def __init__(self, inputfile=None,filetype=None,continueOnErr=False):
         if inputfile is not None:
             self._doinit(inputfile,filetype,continueOnErr)
