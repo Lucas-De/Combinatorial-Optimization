@@ -9,7 +9,7 @@ import time
 random.seed(2018)
 
 File= "Instances/CO2018_1.txt"
-Instance=passInstance(File,True)
+Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
 Name = Instance.Name
@@ -589,7 +589,7 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 
 # Run QuickRoute
 t = time.time()
-truckRoutes=QuickRouteAlgorithm(1000,2)
+truckRoutes=QuickRouteAlgorithm(100,2)
 elapsed = time.time() - t
 #print(elapsed)
 #print(getCosts(truckRoutes))
