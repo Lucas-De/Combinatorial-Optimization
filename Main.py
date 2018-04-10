@@ -639,16 +639,23 @@ for routes in techRoutes:
 
 #showMap(finalRoutes, Tech=True)
 
-for i in range(1,Days+1):
-    currList = []
-    print ("DAY = ", i)
-    print ("NUMBER_OF_TRUCKS = ", len(mainList[i]))
-    for j in range(len(mainList[i])):
-        print ( j+1,' '.join([str(k.ID)  for k in mainList[i][j].seq]) )
-    print("NUMBER_OF_TECHNICIANS = ", len(techRoutes[i-1]))
-    for j in range(len(techRoutes[i-1])):
-        print ( techRoutes[i-1][j][0],' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]) )
 
+def printSolution():
+    print("DATASET = CO2018 freestyle")
+    print("NAME = Instance ", File[-5:-4])
+
+    for i in range(1,Days+1):
+        currList = []
+        print ("DAY = ", i)
+        print ("NUMBER_OF_TRUCKS = ", len(mainList[i]))
+        for j in range(len(mainList[i])):
+            print ( j+1,' '.join([str(k.ID)  for k in mainList[i][j].seq]) )
+        print("NUMBER_OF_TECHNICIANS = ", len(techRoutes[i-1]))
+        for j in range(len(techRoutes[i-1])):
+            print ( techRoutes[i-1][j][0],' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]) )
+
+
+printSolution()
 
 #print(len(techRoutes))
 
