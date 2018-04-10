@@ -8,7 +8,7 @@ import time
 
 random.seed(2018)
 
-File= "Instances/CO2018_2.txt"
+File= "Instances/CO2018_1.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -274,6 +274,7 @@ class Route(object):
             elif(mergeType==3): newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
             else: return False
 
+            print(newSeq[0])
             dist=Distances[self.homebase][Locations[newSeq[0].customerLocID-1].ID-1]
 
             if routeType == 'truck':
@@ -386,11 +387,9 @@ def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType=
         for i in range(Days):
             day = i + 1
             currAvRequests = []
-            #print(totRequests)
             for request in totRequests:
                 if request.fromDay <= day:
                     currAvRequests.append(request)
-                    #totRequests.remove(request)
             routes = initRoutes(technician, closestReq, routeType,currAvRequests)
             possible = True
             while (possible):
@@ -401,6 +400,10 @@ def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType=
         possible=True
         while(possible):
             possible=mergeBestPair(totalRoutes,routeType)
+
+    if len(totalRoutes) == 1 and totalRoutes[0].seq == []:
+        totalRoutes = None
+
     return(totalRoutes)
 
 #Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
@@ -432,22 +435,14 @@ def techniciansSchedule(requestDict):
 
                 if len(techList) > 0:
                     optimalTech = min(techList,key=lambda x:x[2])
-                    print("tech", optimalTech[0])
-                    print("closestreq", optimalTech[1])
-
-
                     routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
-                    for i in routes:
-                        print("seq", end="")
-                        i.printSeq()
-                    finalRoute = getLargestRoute(routes)
-                    finalRoute.day = i
 
-                    #print("day", i + 2)
-                    #finalRoute.printSeq()
+                    if routes != None:
+                        finalRoute = getLargestRoute(routes)
+                        finalRoute.day = i
 
-                    for k in range(len(finalRoute.seq)):
-                        currentRequests.remove(finalRoute.seq[k])
+                        for k in range(len(finalRoute.seq)):
+                            currentRequests.remove(finalRoute.seq[k])
 
                     technician = optimalTech[0]
                     dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
