@@ -6,7 +6,9 @@ import copy
 import random
 import time
 
-File= "Instances/STUDENT002.txt"
+random.seed(2018)
+
+File= "Instances/CO2018_2.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -402,21 +404,17 @@ def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType=
     return(totalRoutes)
 
 #Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
-def techniciansSchedule(requestList):
+def techniciansSchedule(requestDict):
     availableTech = Technicians
     nonAvailableTech = None
     finalRouteList = []
-    remainingRequests = None
+    currentRequests = []
 
-    for i in range(Days):
-        if requestList[i] == None and remainingRequests == None:
-            currentRequests = None
-        elif requestList[i] == None:
-            currentRequests = remainingRequests
-        elif remainingRequests == None:
-            currentRequests = requestList[i]
-        else:
-            currentRequests = requestList[i] + remainingRequests
+    for i in range(1,Days+1):
+        if i in requestDict:
+            dayRequests=requestDict[i]
+            for request in dayRequests:
+                currentRequests.append(request)
 
         currAvailableTech = copy.deepcopy(availableTech)
         dailyRouteList = []
@@ -434,17 +432,25 @@ def techniciansSchedule(requestList):
 
                 if len(techList) > 0:
                     optimalTech = min(techList,key=lambda x:x[2])
-                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
-                    finalRoute = getLargestRoute(routes)
-                    dailyRouteList.append(finalRoute)                       #append daily routes to list
+                    print("tech", optimalTech[0])
+                    print("closestreq", optimalTech[1])
 
-                    print("day", i + 2)
-                    finalRoute.printSeq()
+
+                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
+                    for i in routes:
+                        print("seq", end="")
+                        i.printSeq()
+                    finalRoute = getLargestRoute(routes)
+                    finalRoute.day = i
+
+                    #print("day", i + 2)
+                    #finalRoute.printSeq()
 
                     for k in range(len(finalRoute.seq)):
                         currentRequests.remove(finalRoute.seq[k])
 
                     technician = optimalTech[0]
+                    dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
 
                     if technician.stillAvailable():
                         technician.prevWorkDays += 1
@@ -466,7 +472,6 @@ def techniciansSchedule(requestList):
                     nonAvailableTech.remove(technician)
 
         finalRouteList.append(dailyRouteList)
-        remainingRequests = currentRequests
 
     return finalRouteList
 
@@ -573,6 +578,8 @@ def QuickRouteAlgorithm(iterations=1,method=2):
             optRoutes=routes
     return(optRoutes)
 
+
+
 #Runs Savings
 #t = time.time()
 #routes=savingsAlgorithm(timeWindow=True)
@@ -587,38 +594,68 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 
 # Run QuickRoute
 t = time.time()
-routes=QuickRouteAlgorithm(100,2)
+truckRoutes=QuickRouteAlgorithm(100,2)
 elapsed = time.time() - t
-print(elapsed)
-print(getCosts(routes))
+#print(elapsed)
+#print(getCosts(truckRoutes))
 #for b in r:
 #   print(b.day,[c.ID for c in b.seq])
 #showMap(r)
 
 
+
+mainList = [[] for i in range(Days+1)]
+for r in truckRoutes:
+    index=r.day
+    mainList[index].append(r)
+
+
+
+'''
 requestList = []
-for i in range(Days):
+for i in range(1,Days+1):
     currDayList = []
-    for j in range(len(routes)):
-        currRoute = routes[j]
-        if currRoute.day == (i + 1):
+    for j in range(len(truckRoutes)):
+        currRoute = truckRoutes[j]
+        if currRoute.day == i:
             for l in range(len(currRoute.seq)):
                 currDayList.append(currRoute.seq[l])
     requestList.append(currDayList)
-
-'''
-requestList = []
-requestList.append(Requests[0:4])
-requestList.append(Requests[4:9])
-requestList.append(Requests[9:14])
-requestList.append(Requests[14:22])
-requestList.append(Requests[22:30])
 '''
 
-#print(requestList)
-for i in range(Days):
-    requestList.append(None)
+requestDict={}
+for i in range(2,Days+1):
+    abc=[]
+    for route in mainList[i-1]:
+        for request in route.seq:
+            abc.append(request)
+    requestDict[i]=abc
 
 print("technicians schedule")
-finalRoutes = techniciansSchedule(requestList)
+techRoutes = techniciansSchedule(requestDict)
+
+'''
+for routes in techRoutes:
+    for route in routes:
+        print("day", route[1].day)
+
+        print(route[0], end="")
+        route[1].printSeq()
+'''
+
 #showMap(finalRoutes, Tech=True)
+
+for i in range(1,Days+1):
+    currList = []
+    print ("DAY = ", i)
+    print ("NUMBER_OF_TRUCKS = ", len(mainList[i]))
+    for j in range(len(mainList[i])):
+        print ( j+1,' '.join([str(k.ID)  for k in mainList[i][j].seq]) )
+    print("NUMBER_OF_TECHNICIANS = ", len(techRoutes[i-1]))
+    for j in range(len(techRoutes[i-1])):
+        print ( techRoutes[i-1][j][0],' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]) )
+
+
+#print(len(techRoutes))
+
+
