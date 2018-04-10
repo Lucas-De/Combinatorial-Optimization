@@ -642,7 +642,7 @@ for routes in techRoutes:
 
 def printSolution():
     print("DATASET = CO2018 freestyle")
-    print("NAME = Instance ", File[-5:-4])
+    print("NAME = Instance", File[-5:-4])
 
     for i in range(1,Days+1):
         currList = []
