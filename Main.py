@@ -9,7 +9,7 @@ import time
 random.seed(2018)
 
 File= "Instances/CO2018_1.txt"
-Instance=passInstance(File,False)
+Instance=passInstance(File,True)
 
 Dataset = Instance.Dataset
 Name = Instance.Name
@@ -274,7 +274,6 @@ class Route(object):
             elif(mergeType==3): newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
             else: return False
 
-            print(newSeq[0])
             dist=Distances[self.homebase][Locations[newSeq[0].customerLocID-1].ID-1]
 
             if routeType == 'truck':
@@ -367,11 +366,12 @@ def mergeBestPair(routes,routeType):
     options=[]
     for i in range(len(routes)):
         for j in range(i+1,len(routes)):
-            o=bestMergeType(routes[i],routes[j],routeType)
-            saving=routes[i].dist+routes[j].dist-o[1]
-            bestmergeType=o[0]
-            if(o[0]!=None):
-                options.append([i,j,bestmergeType,saving])
+            if routes[i].seq != [] and routes[j].seq != []:
+                o=bestMergeType(routes[i],routes[j],routeType)
+                saving=routes[i].dist+routes[j].dist-o[1]
+                bestmergeType=o[0]
+                if(o[0]!=None):
+                    options.append([i,j,bestmergeType,saving])
     if(len(options)==0):
         return False
     bestPair=max(options,key=lambda x: x[3])
@@ -589,7 +589,7 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 
 # Run QuickRoute
 t = time.time()
-truckRoutes=QuickRouteAlgorithm(100,2)
+truckRoutes=QuickRouteAlgorithm(1000,2)
 elapsed = time.time() - t
 #print(elapsed)
 #print(getCosts(truckRoutes))
@@ -626,7 +626,6 @@ for i in range(2,Days+1):
             abc.append(request)
     requestDict[i]=abc
 
-print("technicians schedule")
 techRoutes = techniciansSchedule(requestDict)
 
 '''
