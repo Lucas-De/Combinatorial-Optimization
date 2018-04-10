@@ -8,7 +8,7 @@ import time
 
 random.seed(2018)
 
-File= "Instances/CO2018_1.txt"
+File= "Instances/CO2018_2.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -247,6 +247,8 @@ class Route(object):
                 else:
                     return (Valid, dist, nrMachines)
 
+
+
         def printSeq(self):
             print([i.ID for i in self.seq])
 
@@ -324,6 +326,7 @@ class Route(object):
                     return (Valid, dist, nrMachines)
                 else:
                     return (Valid, dist, nrMachines)
+
 
 def initRoutes(technician,closestReq,routeType,avRequests=None):
     routes=[]
@@ -418,17 +421,18 @@ def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType=
 #Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
 def techniciansSchedule(requestDict):
     availableTech = Technicians
-    nonAvailableTech = None
+    nonAvailableTech = []
     finalRouteList = []
     currentRequests = []
 
     for i in range(1,Days+1):
+
         if i in requestDict:
             dayRequests=requestDict[i]
             for request in dayRequests:
                 currentRequests.append(request)
 
-        currAvailableTech = copy.deepcopy(availableTech)
+        currAvailableTech = [t for t in availableTech]
         dailyRouteList = []
 
         if currAvailableTech != None and currentRequests != None:
@@ -446,15 +450,15 @@ def techniciansSchedule(requestDict):
                     optimalTech = min(techList,key=lambda x:x[2])
                     routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
 
-                    if routes != None:
+                    technician = optimalTech[0]
+                    if routes != None and len(routes[0].seq) !=0:
                         finalRoute = getLargestRoute(routes)
                         finalRoute.day = i
 
                         for k in range(len(finalRoute.seq)):
                             currentRequests.remove(finalRoute.seq[k])
 
-                    technician = optimalTech[0]
-                    dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
+                        dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
 
                     if technician.stillAvailable():
                         technician.prevWorkDays += 1
@@ -463,17 +467,16 @@ def techniciansSchedule(requestDict):
                         technician.prevWorkDays = 0
                         availableTech.remove(technician)
                         nonAvailableTech.append(technician)
-
                 currAvailableTech.remove(technician)
 
-        if nonAvailableTech != None:
-            for l in range(len(nonAvailableTech)):
-                technician = nonAvailableTech[i]
-                technician.breakDaysLeft -= 1
 
-                if technician.availableAgain():
-                    availableTech.append(technician)
-                    nonAvailableTech.remove(technician)
+
+        for t in nonAvailableTech:
+            t.breakDaysLeft -= 1
+
+            if t.availableAgain():
+                availableTech.append(t)
+                nonAvailableTech.remove(t)
 
         finalRouteList.append(dailyRouteList)
 
@@ -575,6 +578,7 @@ def QuickRouteAlgorithm(iterations=1,method=2):
     optRoutes=[]
 
     for i in range(iterations):
+        print(i)
         routes=QuickRoute(method)
         cost=getCosts(routes)
         if(cost<optCost):
