@@ -6,7 +6,9 @@ import copy
 import random
 import time
 
-File= "Instances/STUDENT002.txt"
+random.seed(2018)
+
+File= "Instances/CO2018_1.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -51,10 +53,11 @@ def showMap(RoutesList,Tech=False,ViewSize=False):
     plt.scatter(Locations[0].X, Locations[0].Y,c='k', marker='*')
 
     if(Route!=None):
-        for r in RoutesList:
-            x=[Locations[0].X]+[Locations[i-1].X for i in [req.customerLocID for req in r.seq]]+[Locations[0].X]
-            y=[Locations[0].Y]+[Locations[i-1].Y for i in [req.customerLocID for req in r.seq]]+[Locations[0].Y]
-            plt.plot(x,y,c='k',linewidth=0.5)
+        for routes in RoutesList:
+            for route in routes:
+                x=[Locations[0].X]+[Locations[i-1].X for i in [req.customerLocID for req in route.seq]]+[Locations[0].X]
+                y=[Locations[0].Y]+[Locations[i-1].Y for i in [req.customerLocID for req in route.seq]]+[Locations[0].Y]
+                plt.plot(x,y,c='k',linewidth=0.5)
 
     plt.show()
 
@@ -271,6 +274,7 @@ class Route(object):
             elif(mergeType==3): newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
             else: return False
 
+            print(newSeq[0])
             dist=Distances[self.homebase][Locations[newSeq[0].customerLocID-1].ID-1]
 
             if routeType == 'truck':
@@ -313,12 +317,16 @@ class Route(object):
                 else:
                     return (Valid, dist, nrMachines)
 
-def initRoutes(technician,closestReq,routeType):
+def initRoutes(technician,closestReq,routeType,avRequests=None):
     routes=[]
+    if avRequests != None:
+        requests = avRequests
+    else:
+        requests = Requests
+
     if routeType == 'truck':
-        for i in range(0,len(Requests)):
+        for i in range(0,len(requests)):
             r=Route(routeType)
-            print(Requests[i])
             r.add(Requests[i],routeType)
             routes.append(r)
     elif routeType == 'technician':
@@ -372,29 +380,44 @@ def mergeBestPair(routes,routeType):
     return True
 
 #Savings Algorithm (Doesn't consider time windows): prints routing solution map
-def savingsAlgorithm(technician=None,closestReq=None,routeType='truck'):
-    routes = initRoutes(technician,closestReq,routeType)
-    possible=True
-    while(possible):
-        possible=mergeBestPair(routes,routeType)
-    return(routes)
+def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType='truck'):
+    if (timeWindow):
+        totRequests = copy.deepcopy(Requests)
+        totalRoutes = []
+        for i in range(Days):
+            day = i + 1
+            currAvRequests = []
+            for request in totRequests:
+                if request.fromDay <= day:
+                    currAvRequests.append(request)
+            routes = initRoutes(technician, closestReq, routeType,currAvRequests)
+            possible = True
+            while (possible):
+                possible = mergeBestPair(routes, routeType)
+            totalRoutes.append(routes)
+    else:
+        totalRoutes = initRoutes(technician,closestReq,routeType)
+        possible=True
+        while(possible):
+            possible=mergeBestPair(totalRoutes,routeType)
+
+    if len(totalRoutes) == 1 and totalRoutes[0].seq == []:
+        totalRoutes = None
+
+    return(totalRoutes)
 
 #Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
-def techniciansSchedule(requestList):
+def techniciansSchedule(requestDict):
     availableTech = Technicians
     nonAvailableTech = None
     finalRouteList = []
-    remainingRequests = None
+    currentRequests = []
 
-    for i in range(Days):
-        if requestList[i] == None and remainingRequests == None:
-            currentRequests = None
-        elif requestList[i] == None:
-            currentRequests = remainingRequests
-        elif remainingRequests == None:
-            currentRequests = requestList[i]
-        else:
-            currentRequests = requestList[i] + remainingRequests
+    for i in range(1,Days+1):
+        if i in requestDict:
+            dayRequests=requestDict[i]
+            for request in dayRequests:
+                currentRequests.append(request)
 
         currAvailableTech = copy.deepcopy(availableTech)
         dailyRouteList = []
@@ -410,27 +433,29 @@ def techniciansSchedule(requestList):
                         avgDistance = computeAVG(column(closestReq,1))
                         techList.append((technician,column(closestReq,0),avgDistance))
 
-                optimalTech = min(techList,key=lambda x:x[2])
-                routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
-                finalRoute = getLargestRoute(routes)
-                dailyRouteList.append(finalRoute)                       #append daily routes to list
+                if len(techList) > 0:
+                    optimalTech = min(techList,key=lambda x:x[2])
+                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
 
-                print("day", i + 2)
-                finalRoute.printSeq()
+                    if routes != None:
+                        finalRoute = getLargestRoute(routes)
+                        finalRoute.day = i
 
-                for k in range(len(finalRoute.seq)):
-                    currentRequests.remove(finalRoute.seq[k])
+                        for k in range(len(finalRoute.seq)):
+                            currentRequests.remove(finalRoute.seq[k])
 
-                technician = optimalTech[0]
+                    technician = optimalTech[0]
+                    dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
+
+                    if technician.stillAvailable():
+                        technician.prevWorkDays += 1
+                    else:
+                        technician.breakDaysLeft = 3
+                        technician.prevWorkDays = 0
+                        availableTech.remove(technician)
+                        nonAvailableTech.append(technician)
+
                 currAvailableTech.remove(technician)
-
-                if technician.stillAvailable():
-                    technician.prevWorkDays += 1
-                else:
-                    technician.breakDaysLeft = 3
-                    technician.prevWorkDays = 0
-                    availableTech.remove(technician)
-                    nonAvailableTech.append(technician)
 
         if nonAvailableTech != None:
             for l in range(len(nonAvailableTech)):
@@ -442,7 +467,6 @@ def techniciansSchedule(requestList):
                     nonAvailableTech.remove(technician)
 
         finalRouteList.append(dailyRouteList)
-        remainingRequests = currentRequests
 
     return finalRouteList
 
@@ -464,8 +488,9 @@ def computeClosestReq(technician,requests):
     distList = []
 
     for i in range(len(requests)):
-        dist = Distances[technician.locationID - 1][requests[i].customerLocID - 1]
-        distList.append((requests[i],dist))
+        if partOfSkillset(technician,requests[i]):
+            dist = Distances[technician.locationID - 1][requests[i].customerLocID - 1]
+            distList.append((requests[i],dist))
     sortedDist = sorted(distList,key=lambda x:x[1],reverse=True)
 
     nClosest = []
@@ -480,6 +505,12 @@ def computeClosestReq(technician,requests):
             n -= currentReq[0].amount
 
     return nClosest
+
+def partOfSkillset(technician,request):
+    if technician.capabilities[request.machineID - 1] == 1:
+        return True
+    else:
+        return False
 
 def computeAVG(distList):
     sum = 0
@@ -542,45 +573,84 @@ def QuickRouteAlgorithm(iterations=1,method=2):
             optRoutes=routes
     return(optRoutes)
 
+
+
 #Runs Savings
 #t = time.time()
-#routes=savingsAlgorithm()
+#routes=savingsAlgorithm(timeWindow=True)
 #elapsed = time.time() - t
 #print(elapsed)
 #print("Savings Alg Total Dist:",getCosts(routes))
-#showMap(routes)
+
+#for route in routes:
+#    for i in route:
+#        print(i.seq)
+    #showMap(route)
 
 # Run QuickRoute
 t = time.time()
-routes=QuickRouteAlgorithm(100,2)
+truckRoutes=QuickRouteAlgorithm(100,2)
 elapsed = time.time() - t
-print(elapsed)
-print(getCosts(routes))
+#print(elapsed)
+#print(getCosts(truckRoutes))
 #for b in r:
 #   print(b.day,[c.ID for c in b.seq])
 #showMap(r)
 
+
+
+mainList = [[] for i in range(Days+1)]
+for r in truckRoutes:
+    index=r.day
+    mainList[index].append(r)
+
+
+
+'''
 requestList = []
-for i in range(Days):
+for i in range(1,Days+1):
     currDayList = []
-    for j in range(len(routes)):
-        currRoute = routes[j]
-        if currRoute.day == (i + 1):
+    for j in range(len(truckRoutes)):
+        currRoute = truckRoutes[j]
+        if currRoute.day == i:
             for l in range(len(currRoute.seq)):
                 currDayList.append(currRoute.seq[l])
     requestList.append(currDayList)
-
-'''
-requestList = []
-requestList.append(Requests[0:4])
-requestList.append(Requests[4:9])
-requestList.append(Requests[9:14])
-requestList.append(Requests[14:22])
-requestList.append(Requests[22:30])
 '''
 
-for i in range(Days):
-    requestList.append(None)
+requestDict={}
+for i in range(2,Days+1):
+    abc=[]
+    for route in mainList[i-1]:
+        for request in route.seq:
+            abc.append(request)
+    requestDict[i]=abc
 
 print("technicians schedule")
-finalRoutes = techniciansSchedule(requestList)
+techRoutes = techniciansSchedule(requestDict)
+
+'''
+for routes in techRoutes:
+    for route in routes:
+        print("day", route[1].day)
+
+        print(route[0], end="")
+        route[1].printSeq()
+'''
+
+#showMap(finalRoutes, Tech=True)
+
+for i in range(1,Days+1):
+    currList = []
+    print ("DAY = ", i)
+    print ("NUMBER_OF_TRUCKS = ", len(mainList[i]))
+    for j in range(len(mainList[i])):
+        print ( j+1,' '.join([str(k.ID)  for k in mainList[i][j].seq]) )
+    print("NUMBER_OF_TECHNICIANS = ", len(techRoutes[i-1]))
+    for j in range(len(techRoutes[i-1])):
+        print ( techRoutes[i-1][j][0],' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]) )
+
+
+#print(len(techRoutes))
+
+
