@@ -268,24 +268,32 @@ class Route(object):
 
         def mergeWith(self,routeType,mRoute,mergeType):
             newSeq=None
-            if(mergeType==0):   newSeq=self.seq+mRoute.seq
-            elif(mergeType==1): newSeq=self.seq+list(reversed(mRoute.seq))
-            elif(mergeType==2): newSeq=list(reversed(self.seq))+mRoute.seq
-            elif(mergeType==3): newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
+            if(mergeType==0):   
+                newSeq=self.seq+mRoute.seq
+                a=self.seq[-1].customerLocID
+                b=mRoute.seq[0].customerLocID
+            elif(mergeType==1): 
+                newSeq=self.seq+list(reversed(mRoute.seq))
+                a=self.seq[-1].customerLocID
+                b=mRoute.seq[-1].customerLocID
+            elif(mergeType==2): 
+                newSeq=list(reversed(self.seq))+mRoute.seq
+                a=self.seq[0].customerLocID
+                b=mRoute.seq[0].customerLocID
+            elif(mergeType==3): 
+                newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
+                a=self.seq[0].customerLocID
+                b=mRoute.seq[-1].customerLocID
             else: return False
 
-            dist=Distances[self.homebase][Locations[newSeq[0].customerLocID-1].ID-1]
-
             if routeType == 'truck':
-                load=0
-                for i in range(len(newSeq)-1):
-                    fromReq=newSeq[i]
-                    toReq=newSeq[i+1]
-                    load+= fromReq.totalSize
-                    dist+=Distances[Locations[fromReq.customerLocID-1].ID-1][Locations[toReq.customerLocID-1].ID-1]
-                load+=newSeq[-1].totalSize
+                load=self.load+mRoute.load
+                dist=self.dist+mRoute.dist
+                dist-=Distances[a-1][self.homebase]
+                dist-=Distances[b-1][self.homebase]
+                dist+=Distances[b-1][a-1]
 
-                Valid=self.validTruckRoute(dist, load)
+                Valid = self.validTruckRoute(dist,load)
                 if(Route.Lock==True):
                     return (Valid, dist, load)
                 elif(Valid):
@@ -295,15 +303,16 @@ class Route(object):
                     return (Valid, dist, load)
                 else:
                     return (Valid, dist, load)
+
+
+
             elif routeType == 'technician':
-                nrMachines = 0
-                for i in range(len(newSeq) - 1):
-                    fromReq = newSeq[i]
-                    toReq = newSeq[i + 1]
-                    nrMachines += fromReq.amount
-                    dist += Distances[Locations[fromReq.customerLocID - 1].ID - 1][
-                        Locations[toReq.customerLocID - 1].ID - 1]
-                nrMachines += newSeq[-1].amount
+                nrMachines = self.nrMachines + mRoute.nrMachines
+                dist=self.dist+mRoute.dist
+                dist-=Distances[a-1][self.homebase]
+                dist-=Distances[b-1][self.homebase]
+                dist+=Distances[b-1][a-1]
+
 
                 Valid = self.validTechRoute(dist,nrMachines)
                 if (Route.Lock == True):
@@ -575,6 +584,24 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 
 
 
+r=Route('truck')
+r.add(Requests[1],'truck')
+r.add(Requests[2],'truck')
+
+
+r2=Route('truck')
+r2.add(Requests[0],'truck')
+r2.add(Requests[18],'truck')
+
+print("r.dist=",r.dist)
+
+r.mergeWith('truck',r2,0)
+
+print(getCosts([r]))
+# showMap([[r]])
+print([k.ID for k in r.seq])
+
+
 #Runs Savings
 #t = time.time()
 #routes=savingsAlgorithm(timeWindow=True)
@@ -591,11 +618,11 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 t = time.time()
 truckRoutes=QuickRouteAlgorithm(100,2)
 elapsed = time.time() - t
-#print(elapsed)
-#print(getCosts(truckRoutes))
-#for b in r:
+print(elapsed)
+print(getCosts(truckRoutes))
+# for b in r:
 #   print(b.day,[c.ID for c in b.seq])
-#showMap(r)
+# showMap(r)
 
 
 
