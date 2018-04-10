@@ -615,7 +615,7 @@ requestList.append(Requests[14:22])
 requestList.append(Requests[22:30])
 '''
 
-print(requestList)
+#print(requestList)
 for i in range(Days):
     requestList.append(None)
 
