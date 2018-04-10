@@ -51,10 +51,11 @@ def showMap(RoutesList,Tech=False,ViewSize=False):
     plt.scatter(Locations[0].X, Locations[0].Y,c='k', marker='*')
 
     if(Route!=None):
-        for r in RoutesList:
-            x=[Locations[0].X]+[Locations[i-1].X for i in [req.customerLocID for req in r.seq]]+[Locations[0].X]
-            y=[Locations[0].Y]+[Locations[i-1].Y for i in [req.customerLocID for req in r.seq]]+[Locations[0].Y]
-            plt.plot(x,y,c='k',linewidth=0.5)
+        for routes in RoutesList:
+            for route in routes:
+                x=[Locations[0].X]+[Locations[i-1].X for i in [req.customerLocID for req in route.seq]]+[Locations[0].X]
+                y=[Locations[0].Y]+[Locations[i-1].Y for i in [req.customerLocID for req in route.seq]]+[Locations[0].Y]
+                plt.plot(x,y,c='k',linewidth=0.5)
 
     plt.show()
 
@@ -313,12 +314,16 @@ class Route(object):
                 else:
                     return (Valid, dist, nrMachines)
 
-def initRoutes(technician,closestReq,routeType):
+def initRoutes(technician,closestReq,routeType,avRequests=None):
     routes=[]
+    if avRequests != None:
+        requests = avRequests
+    else:
+        requests = Requests
+
     if routeType == 'truck':
-        for i in range(0,len(Requests)):
+        for i in range(0,len(requests)):
             r=Route(routeType)
-            print(Requests[i])
             r.add(Requests[i],routeType)
             routes.append(r)
     elif routeType == 'technician':
@@ -372,12 +377,29 @@ def mergeBestPair(routes,routeType):
     return True
 
 #Savings Algorithm (Doesn't consider time windows): prints routing solution map
-def savingsAlgorithm(technician=None,closestReq=None,routeType='truck'):
-    routes = initRoutes(technician,closestReq,routeType)
-    possible=True
-    while(possible):
-        possible=mergeBestPair(routes,routeType)
-    return(routes)
+def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType='truck'):
+    if (timeWindow):
+        totRequests = copy.deepcopy(Requests)
+        totalRoutes = []
+        for i in range(Days):
+            day = i + 1
+            currAvRequests = []
+            #print(totRequests)
+            for request in totRequests:
+                if request.fromDay <= day:
+                    currAvRequests.append(request)
+                    #totRequests.remove(request)
+            routes = initRoutes(technician, closestReq, routeType,currAvRequests)
+            possible = True
+            while (possible):
+                possible = mergeBestPair(routes, routeType)
+            totalRoutes.append(routes)
+    else:
+        totalRoutes = initRoutes(technician,closestReq,routeType)
+        possible=True
+        while(possible):
+            possible=mergeBestPair(totalRoutes,routeType)
+    return(totalRoutes)
 
 #Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
 def techniciansSchedule(requestList):
@@ -410,27 +432,29 @@ def techniciansSchedule(requestList):
                         avgDistance = computeAVG(column(closestReq,1))
                         techList.append((technician,column(closestReq,0),avgDistance))
 
-                optimalTech = min(techList,key=lambda x:x[2])
-                routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
-                finalRoute = getLargestRoute(routes)
-                dailyRouteList.append(finalRoute)                       #append daily routes to list
+                if len(techList) > 0:
+                    optimalTech = min(techList,key=lambda x:x[2])
+                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
+                    finalRoute = getLargestRoute(routes)
+                    dailyRouteList.append(finalRoute)                       #append daily routes to list
 
-                print("day", i + 2)
-                finalRoute.printSeq()
+                    print("day", i + 2)
+                    finalRoute.printSeq()
 
-                for k in range(len(finalRoute.seq)):
-                    currentRequests.remove(finalRoute.seq[k])
+                    for k in range(len(finalRoute.seq)):
+                        currentRequests.remove(finalRoute.seq[k])
 
-                technician = optimalTech[0]
+                    technician = optimalTech[0]
+
+                    if technician.stillAvailable():
+                        technician.prevWorkDays += 1
+                    else:
+                        technician.breakDaysLeft = 3
+                        technician.prevWorkDays = 0
+                        availableTech.remove(technician)
+                        nonAvailableTech.append(technician)
+
                 currAvailableTech.remove(technician)
-
-                if technician.stillAvailable():
-                    technician.prevWorkDays += 1
-                else:
-                    technician.breakDaysLeft = 3
-                    technician.prevWorkDays = 0
-                    availableTech.remove(technician)
-                    nonAvailableTech.append(technician)
 
         if nonAvailableTech != None:
             for l in range(len(nonAvailableTech)):
@@ -464,8 +488,9 @@ def computeClosestReq(technician,requests):
     distList = []
 
     for i in range(len(requests)):
-        dist = Distances[technician.locationID - 1][requests[i].customerLocID - 1]
-        distList.append((requests[i],dist))
+        if partOfSkillset(technician,requests[i]):
+            dist = Distances[technician.locationID - 1][requests[i].customerLocID - 1]
+            distList.append((requests[i],dist))
     sortedDist = sorted(distList,key=lambda x:x[1],reverse=True)
 
     nClosest = []
@@ -480,6 +505,12 @@ def computeClosestReq(technician,requests):
             n -= currentReq[0].amount
 
     return nClosest
+
+def partOfSkillset(technician,request):
+    if technician.capabilities[request.machineID - 1] == 1:
+        return True
+    else:
+        return False
 
 def computeAVG(distList):
     sum = 0
@@ -544,11 +575,15 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 
 #Runs Savings
 #t = time.time()
-#routes=savingsAlgorithm()
+#routes=savingsAlgorithm(timeWindow=True)
 #elapsed = time.time() - t
 #print(elapsed)
 #print("Savings Alg Total Dist:",getCosts(routes))
-#showMap(routes)
+
+#for route in routes:
+#    for i in route:
+#        print(i.seq)
+    #showMap(route)
 
 # Run QuickRoute
 t = time.time()
@@ -559,6 +594,7 @@ print(getCosts(routes))
 #for b in r:
 #   print(b.day,[c.ID for c in b.seq])
 #showMap(r)
+
 
 requestList = []
 for i in range(Days):
@@ -579,8 +615,10 @@ requestList.append(Requests[14:22])
 requestList.append(Requests[22:30])
 '''
 
+print(requestList)
 for i in range(Days):
     requestList.append(None)
 
 print("technicians schedule")
 finalRoutes = techniciansSchedule(requestList)
+#showMap(finalRoutes, Tech=True)
