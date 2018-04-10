@@ -616,7 +616,7 @@ print([k.ID for k in r.seq])
 
 # Run QuickRoute
 t = time.time()
-truckRoutes=QuickRouteAlgorithm(100,2)
+truckRoutes=QuickRouteAlgorithm(10,2)
 elapsed = time.time() - t
 print(elapsed)
 print(getCosts(truckRoutes))
@@ -668,18 +668,21 @@ for routes in techRoutes:
 
 
 def printSolution():
-    print("DATASET = CO2018 freestyle")
-    print("NAME = Instance", File[-5:-4])
+    f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
+    f.write("DATASET = CO2018 freestyle \n")
+    f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
 
     for i in range(1,Days+1):
         currList = []
-        print ("DAY = ", i)
-        print ("NUMBER_OF_TRUCKS = ", len(mainList[i]))
+        f.write("DAY = " + str(i) + "\n")
+        f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
         for j in range(len(mainList[i])):
-            print ( j+1,' '.join([str(k.ID)  for k in mainList[i][j].seq]) )
-        print("NUMBER_OF_TECHNICIANS = ", len(techRoutes[i-1]))
+            f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
+            f.write("\n")
+        f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
         for j in range(len(techRoutes[i-1])):
-            print ( techRoutes[i-1][j][0],' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]) )
+            f.write(str(techRoutes[i-1][j][0])+" "+' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]))
+            f.write("\n")
 
 
 printSolution()
