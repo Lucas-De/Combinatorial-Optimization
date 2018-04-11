@@ -8,7 +8,7 @@ import time
 
 random.seed(2018)
 
-File= "Instances/CO2018_7.txt"
+File= "Instances/CO2018_1.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -362,7 +362,7 @@ def initRoutes(technician,closestReq,routeType,avRequests=None):
     if routeType == 'truck':
         for i in range(0,len(requests)):
             r=Route(routeType)
-            r.add(Requests[i],routeType)
+            r.add(requests[i],routeType)
             routes.append(r)
     elif routeType == 'technician':
         for i in range(len(closestReq)):
@@ -424,13 +424,20 @@ def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType=
             day = i + 1
             currAvRequests = []
             for request in totRequests:
-                if request.fromDay <= day:
+                if request.fromDay <= day and day <= request.toDay:
                     currAvRequests.append(request)
+
+            for request in currAvRequests:
+                totRequests.remove(request)
+
             routes = initRoutes(technician, closestReq, routeType,currAvRequests)
             possible = True
             while (possible):
                 possible = mergeBestPair(routes, routeType)
-            totalRoutes.append(routes)
+
+            for route in routes:
+                route.day = day
+                totalRoutes.append(route)
     else:
         totalRoutes = initRoutes(technician,closestReq,routeType)
         possible=True
@@ -658,23 +665,30 @@ MERGE_ROUTES=False
 
 t = time.time()
 
-truckRoutes=QuickRouteAlgorithm(100,2)
+#truckRoutes=QuickRouteAlgorithm(100,2)
+truckRoutes=savingsAlgorithm(timeWindow=True)
+
 elapsed = time.time() - t
 
-mainList = [[] for i in range(Days+1)]
-for r in truckRoutes:
-    index=r.day
-    mainList[index].append(r)
+def getMainList(routes):
+    mainList = [[] for i in range(Days+1)]
+    for r in routes:
+        index=r.day
+        mainList[index].append(r)
+    return (mainList)
 
+def getReqDict(mainList):
+    requestDict={}
+    for i in range(2,Days+1):
+        abc=[]
+        for route in mainList[i-1]:
+            for request in route.seq:
+                abc.append(request)
+        requestDict[i]=abc
+    return (requestDict)
 
-requestDict={}
-for i in range(2,Days+1):
-    abc=[]
-    for route in mainList[i-1]:
-        for request in route.seq:
-            abc.append(request)
-    requestDict[i]=abc
-
+mainList = getMainList(truckRoutes)
+requestDict = getReqDict(mainList)
 techRoutes = techniciansSchedule(requestDict)
 
 print("SECONDS:",elapsed)
@@ -705,6 +719,5 @@ def printSolution():
 
 printSolution()
 
-#print(len(techRoutes))
 
 
