@@ -6,9 +6,9 @@ import copy
 import random
 import time
 
-random.seed(2011)
+random.seed(2018)
 
-File= "Instances/CO2018_2.txt"
+File= "Instances/CO2018_7.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -632,7 +632,8 @@ def QuickRoute(method=1):
                             OnDay[j].remove(toAdd) 
             r.day=i+1
             routes.append(r)
-            # routes=combine(routes)
+            if(MERGE_ROUTES):
+                routes=combine(routes)
     return(routes)
 
 def QuickRouteAlgorithm(iterations=1,method=2):
@@ -653,8 +654,7 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 
 
 
-
-
+MERGE_ROUTES=False
 
 t = time.time()
 
@@ -692,8 +692,10 @@ def printSolution():
         f.write("DAY = " + str(i) + "\n")
         f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
         for j in range(len(mainList[i])):
-            # f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
-            f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
+            if(MERGE_ROUTES):
+                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
+            else:
+                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
             f.write("\n")
         f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
         for j in range(len(techRoutes[i-1])):
