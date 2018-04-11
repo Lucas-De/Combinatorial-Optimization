@@ -8,7 +8,7 @@ import time
 
 random.seed(2018)
 
-File= "Instances/CO2018_2.txt"
+File= "Instances/CO2018_7.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -89,6 +89,7 @@ class Route(object):
             if routeType == 'truck':
                 self.load = 0
                 self.homebase = 0
+                self.truePath=[]
             elif routeType == 'technician':
                 self.nrMachines = 0
                 self.technician = technician
@@ -247,7 +248,30 @@ class Route(object):
                 else:
                     return (Valid, dist, nrMachines)
 
+        def sameTruck(self, mRoute):
+            if(self.dist+mRoute.dist<=TruckMaxDistance):
 
+                if len(self.truePath)==0:
+                    self.truePath=[i.ID for i in self.seq]
+                if len(mRoute.truePath)==0:
+                    mRoute.truePath=[i.ID for i in mRoute.seq]
+
+                self.truePath+=  [0] + mRoute.truePath
+
+                self.seq= self.seq + mRoute.seq
+                self.dist+=mRoute.dist
+                self.load+=mRoute.load
+
+                return True
+            else: return False
+
+        def strigify(self):
+            tempSeq=[]
+            for i in self.seq:
+                tempSeq.append(i.ID)
+            for i in self.returns:
+                tempSeq.insert(i,0)
+            self.seq=tempSeq
 
         def printSeq(self):
             print([i.ID for i in self.seq])
@@ -533,6 +557,43 @@ def computeAVG(distList):
 
     return (sum/n)
 
+
+
+def combine(routes):
+    mainList = [[] for i in range(Days+1)]
+    for r in routes:
+        index=r.day
+        mainList[index].append(r)
+    for day in range(len(mainList)):
+        mainList[day]=combineRoutes(mainList[day])
+    combined= []
+    for sublist in mainList:
+        for item in sublist:
+            if(len(item.truePath)==0): item.truePath= [k.ID for k in item.seq]
+            combined.append(item)
+
+    return combined
+
+def combineRoutes(truckRoutes):
+    sortedRoutes=sorted(truckRoutes,key=lambda x:x.dist)
+    finishedSolution=[]
+
+    while len(sortedRoutes)>1:
+        current=sortedRoutes[0]
+        i=1
+        while((i<len(sortedRoutes)) and current.sameTruck(sortedRoutes[i])):
+            del sortedRoutes[i]
+            i+=1
+        finishedSolution.append(current)
+        del sortedRoutes[0]
+
+    if len(sortedRoutes)>0:
+        finishedSolution.append(sortedRoutes[0])
+    return finishedSolution
+
+
+
+
 #QuickRoute (I made this up): Prints routing solution which considers time windows
 # This is a stochastic algorithm and requires being run multiple times to get a good solution
 def QuickRoute(method=1):
@@ -571,6 +632,8 @@ def QuickRoute(method=1):
                             OnDay[j].remove(toAdd) 
             r.day=i+1
             routes.append(r)
+            if(MERGE_ROUTES):
+                routes=combine(routes)
     return(routes)
 
 def QuickRouteAlgorithm(iterations=1,method=2):
@@ -588,66 +651,21 @@ def QuickRouteAlgorithm(iterations=1,method=2):
 
 
 
-r=Route('truck')
-r.add(Requests[1],'truck')
-r.add(Requests[2],'truck')
 
 
-r2=Route('truck')
-r2.add(Requests[0],'truck')
-r2.add(Requests[18],'truck')
 
-print("r.dist=",r.dist)
+MERGE_ROUTES=False
 
-r.mergeWith('truck',r2,0)
-
-print(getCosts([r]))
-# showMap([[r]])
-print([k.ID for k in r.seq])
-
-
-#Runs Savings
-#t = time.time()
-#routes=savingsAlgorithm(timeWindow=True)
-#elapsed = time.time() - t
-#print(elapsed)
-#print("Savings Alg Total Dist:",getCosts(routes))
-
-#for route in routes:
-#    for i in route:
-#        print(i.seq)
-    #showMap(route)
-
-# Run QuickRoute
 t = time.time()
-truckRoutes=QuickRouteAlgorithm(10,2)
+
+truckRoutes=QuickRouteAlgorithm(100,2)
 elapsed = time.time() - t
-print(elapsed)
-print(getCosts(truckRoutes))
-# for b in r:
-#   print(b.day,[c.ID for c in b.seq])
-# showMap(r)
-
-
 
 mainList = [[] for i in range(Days+1)]
 for r in truckRoutes:
     index=r.day
     mainList[index].append(r)
 
-
-
-'''
-requestList = []
-for i in range(1,Days+1):
-    currDayList = []
-    for j in range(len(truckRoutes)):
-        currRoute = truckRoutes[j]
-        if currRoute.day == i:
-            for l in range(len(currRoute.seq)):
-                currDayList.append(currRoute.seq[l])
-    requestList.append(currDayList)
-'''
 
 requestDict={}
 for i in range(2,Days+1):
@@ -659,16 +677,9 @@ for i in range(2,Days+1):
 
 techRoutes = techniciansSchedule(requestDict)
 
-'''
-for routes in techRoutes:
-    for route in routes:
-        print("day", route[1].day)
+print("SECONDS:",elapsed)
 
-        print(route[0], end="")
-        route[1].printSeq()
-'''
 
-#showMap(finalRoutes, Tech=True)
 
 
 def printSolution():
@@ -681,7 +692,10 @@ def printSolution():
         f.write("DAY = " + str(i) + "\n")
         f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
         for j in range(len(mainList[i])):
-            f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
+            if(MERGE_ROUTES):
+                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
+            else:
+                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
             f.write("\n")
         f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
         for j in range(len(techRoutes[i-1])):
