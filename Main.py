@@ -8,7 +8,7 @@ import time
 
 random.seed(2018)
 
-File= "Instances/CO2018_1.txt"
+File= "Instances/CO2018_2.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -352,7 +352,7 @@ class Route(object):
                     return (Valid, dist, nrMachines)
 
 
-def initRoutes(technician,closestReq,routeType,avRequests=None):
+def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None):
     routes=[]
     if avRequests != None:
         requests = avRequests
@@ -415,11 +415,11 @@ def mergeBestPair(routes,routeType):
     del routes[bestPair[1]]
     return True
 
-#Savings Algorithm (Doesn't consider time windows): prints routing solution map
-def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType='truck'):
+#Savings Algorithm
+def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closestReq=None,routeType='truck'):
+    totalRoutes = []
     if (timeWindow):
         totRequests = copy.deepcopy(Requests)
-        totalRoutes = []
         for i in range(Days):
             day = i + 1
             currAvRequests = []
@@ -438,6 +438,11 @@ def savingsAlgorithm(timeWindow=False,technician=None,closestReq=None,routeType=
             for route in routes:
                 route.day = day
                 totalRoutes.append(route)
+    elif (randomRequests != None):
+        totalRoutes = initRoutes(routeType='truck',avRequests=randomRequests)
+        possible = True
+        while (possible):
+            possible = mergeBestPair(totalRoutes, routeType)
     else:
         totalRoutes = initRoutes(technician,closestReq,routeType)
         possible=True
@@ -656,17 +661,39 @@ def QuickRouteAlgorithm(iterations=1,method=2):
             optRoutes=routes
     return(optRoutes)
 
+def combQuickSavings(iterations=1):
+    optCost = math.inf
+    optRoutes = []
 
+    for i in range(iterations):
+        OnDay = [[] for i in range(0, Days)]
+        schedules=[(list(range(r.fromDay,r.toDay+1)),r) for r in Requests]
+        for s in schedules:
+            OnDay[random.choice(s[0])-1].append(s[1])
 
+        totRoutes = []
+        i = 1
+        for requests in OnDay:
+            routes = savingsAlgorithm(randomRequests=requests)
+            for route in routes:
+                route.day = i
+                totRoutes.append(route)
+            i += 1
+        cost = getCosts(totRoutes)
+        if (cost < optCost):
+            optCost = cost
+            optRoutes = totRoutes
 
+    return (optRoutes)
 
+truckRoutes = combQuickSavings(iterations=100)
 
 MERGE_ROUTES=False
 
 t = time.time()
 
-#truckRoutes=QuickRouteAlgorithm(100,2)
-truckRoutes=savingsAlgorithm(timeWindow=True)
+#truckRoutes=QuickRouteAlgorithm(1,2)
+#truckRoutes=savingsAlgorithm(timeWindow=True)
 
 elapsed = time.time() - t
 
@@ -718,6 +745,5 @@ def printSolution():
 
 
 printSolution()
-
 
 
