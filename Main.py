@@ -13,7 +13,7 @@ import subprocess
 
 random.seed(2018)
 
-File= "Instances/STUDENT002.txt"
+File= "Instances/CO2018_10.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -554,12 +554,15 @@ def computeClosestReq(technician,requests):
     n = 0
     while len(sortedDist) > 0:
         currentReq = sortedDist.pop()
-        n += currentReq[0].amount
+        #n += currentReq[0].amount
+        n += 1
 
         if n <= technician.maxNrInstallations:
             nClosest.append(currentReq)
         else:
-            n -= currentReq[0].amount
+            #n -= currentReq[0].amount
+            break
+
 
     return nClosest
 
@@ -771,25 +774,25 @@ t = time.time()
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
-truckRoutes = combQuickSavings(iterations=100)
+#truckRoutes = combQuickSavings(iterations=100)
 
 MERGE_ROUTES=False
 
-#truckRoutes=QuickRouteAlgorithm(100,1)
+truckRoutes=QuickRouteAlgorithm(100,1)
 #truckRoutes=savingsAlgorithm(timeWindow=True)
 
 
 mainList = getMainList(truckRoutes)
 reqRouteDict = getReqRouteDict(mainList)
 
-improveTruckSolution(reqRouteDict)
-print(reqRouteDict)
+#improveTruckSolution(reqRouteDict)
+#print(reqRouteDict)
 
 
-#requestDict = getReqDict(mainList)
-#techRoutes = techniciansSchedule(requestDict)
+requestDict = getReqDict(mainList)
+techRoutes = techniciansSchedule(requestDict)
 
-'''
+
 printSolution()
 elapsed = time.time() - t
 print("SECONDS:",elapsed, '\n')
@@ -797,7 +800,7 @@ print("SECONDS:",elapsed, '\n')
 #run the solutionfile to get solutioncost:
 var = os.system('python3 SolutionVerolog2019.py ' + '-s ' +"SOLUTION_"+str(File[-5:-4])+".txt " + '-i ' + File)
 print(var)
-'''
+
 
 
 
