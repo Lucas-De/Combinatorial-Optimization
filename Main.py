@@ -13,7 +13,7 @@ import subprocess
 
 random.seed(2018)
 
-File= "Instances/CO2018_10.txt"
+File= "Instances/CO2018_8.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -768,18 +768,18 @@ def getReqDict(mainList):
 
 
 ############OPERATIONS FROM HERE############:
-
 t = time.time()
+
+MERGE_ROUTES=True
 
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
 #truckRoutes = combQuickSavings(iterations=100)
 
-MERGE_ROUTES=False
 
-truckRoutes=QuickRouteAlgorithm(100,1)
-#truckRoutes=savingsAlgorithm(timeWindow=True)
+truckRoutes=QuickRouteAlgorithm(200,2)
+#truckRoutes=savingsAlgorithm(timeWindow=False)
 
 
 mainList = getMainList(truckRoutes)
