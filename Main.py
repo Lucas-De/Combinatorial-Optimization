@@ -13,7 +13,7 @@ import subprocess
 
 random.seed(2018)
 
-File= "Instances/STUDENT002.txt"
+File= "Instances/CO2018_1.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -116,45 +116,63 @@ class Route(object):
                 self.technician = technician
                 self.homebase = technician.locationID - 1
 
-        def removeAt(self,i,routeType):
+        def removeAt(self, i, routeType):
+            removed = None
+            dist = None
+            nrMachines = None
+            seq = None
+
             if routeType == 'truck':
-                removed=self.seq[i]
-                cancelledLoad=removed.totalSize
-                self.load = self.load - cancelledLoad
+                removed = self.seq[i]
+                cancelledLoad = removed.totalSize
+                load = self.load - cancelledLoad
             elif routeType == 'technician':
-                self.nrMachines = self.nrMachines - 1
+                nrMachines = self.nrMachines - 1
 
-            if(len(self.seq)==1):
-                self.seq=[]
+            if (len(self.seq) == 1):
+                seq = []
                 if routeType == 'truck':
-                    return (removed, 0, self.load)
+                    return (removed, 0, load)
                 elif routeType == 'technician':
-                    return (removed, 0, self.nrMachines)
+                    return (removed, 0, nrMachines)
 
-            if(i==len(self.seq)-1):
-                a= self.seq[i-1].customerLocID
-                b= self.seq[i].customerLocID
-                dist = self.dist - Distances[a-1][b-1] - Distances[b-1][self.homebase] + Distances[a-1][self.homebase]
-            elif(i==0):
-                b= self.seq[i].customerLocID
-                c= self.seq[i+1].customerLocID
-                self.dist = self.dist - Distances[self.homebase][b-1] - Distances[b-1][c-1] + Distances[self.homebase][c-1]
+            if (i == len(self.seq) - 1):
+                a = self.seq[i - 1].customerLocID
+                b = self.seq[i].customerLocID
+                dist = self.dist - Distances[a - 1][b - 1] - Distances[b - 1][self.homebase] + Distances[a - 1][
+                    self.homebase]
+            elif (i == 0):
+                b = self.seq[i].customerLocID
+                c = self.seq[i + 1].customerLocID
+                dist = self.dist - Distances[self.homebase][b - 1] - Distances[b - 1][c - 1] + Distances[self.homebase][
+                    c - 1]
             else:
-                a= self.seq[i-1].customerLocID
-                b= self.seq[i].customerLocID
-                c= self.seq[i+1].customerLocID
-                self.dist = self.dist - Distances[a-1][b-1] - Distances[b-1][c-1] + Distances[a-1][b-1]
-         
-            if(Route.Lock==True):
+                a = self.seq[i - 1].customerLocID
+                b = self.seq[i].customerLocID
+                c = self.seq[i + 1].customerLocID
+                dist = self.dist - Distances[a - 1][b - 1] - Distances[b - 1][c - 1] + Distances[a - 1][b - 1]
+
+            if (i == len(self.seq) - 1):
+                seq = self.seq[:i]
+            elif (i == 0):
+                seq = self.seq[1:]
+            else:
+                seq = self.seq[:i] + self.seq[i + 1:]
+
+            if (Route.Lock == True):
                 if routeType == 'truck':
                     return (removed, dist, self.load)
                 elif routeType == 'technician':
                     return (removed, dist, self.nrMachines)
-
-            if(i==len(self.seq)-1): temp =self.seq[:i]
-            elif(i==0): temp =self.seq[1:]
-            else: temp= self.seq[:i]+ self.seq[i+1:]
-            self.seq=temp
+            else:
+                self.seq = seq
+                self.dist = dist
+                if routeType == 'truck':
+                    self.load = load
+                    return (removed, dist, self.load)
+                elif routeType == 'technician':
+                    self.nrMachines = nrMachines
+                    return (removed, dist, self.nrMachines)
 
         def add(self,request,routeType,i=None):
             if(i==len(self.seq) or i is None):
@@ -465,6 +483,7 @@ def techniciansSchedule(requestDict):
     nonAvailableTech = []
     finalRouteList = []
     currentRequests = []
+    Route.Lock = False
 
     for i in range(1,Days+1):
 
@@ -513,8 +532,6 @@ def techniciansSchedule(requestDict):
                         availableTech.remove(technician)
                         nonAvailableTech.append(technician)
                 currAvailableTech.remove(technician)
-
-
 
         for t in nonAvailableTech:
             t.breakDaysLeft -= 1
@@ -691,12 +708,20 @@ def combQuickSavings(iterations=1):
     return (optRoutes)
 
 def improveTruckSolution(requests):
+    mainList = [[] for i in range(Days+1)]
+
     for i in range(1,len(requests)+1):
         for j in range(1,len(requests)+1):
             if i != j:
                 route1 = requests[i][1]
                 route2 = requests[j][1]
-                route1.Lock = route2.Lock = True
+
+                if route1 not in mainList[route1.day]:
+                    mainList[route1.day].append(route1)
+                if route2 not in mainList[route2.day]:
+                    mainList[route2.day].append(route2)
+
+                Route.Lock = True
 
                 req1 = requests[i][0]
 
@@ -709,6 +734,7 @@ def improveTruckSolution(requests):
                     (removed, dist1, load1) = route1.removeAt(routeType='truck',i=req1Index)
                     (valid, dist2, load2) = route2.add(req1,routeType='truck',i=req2Index)
 
+                    Route.Lock = False
                     costImprovement = 0
                     if len(route1.seq) == 1:
                         costImprovement += TruckDayCost
@@ -726,16 +752,14 @@ def improveTruckSolution(requests):
 
                     if costImprovement > 0:
                         if valid:
-                            route1.Lock = route2.Lock = False
-                            route1.removeAt('truck', i=req1Index)
-                            route2.add(req1, 'truck', i=req2Index)
-
+                            route1.removeAt(routeType='truck', i=req1Index)
+                            route2.add(req1, routeType='truck', i=req2Index)
                             requests[i][1] = route2
                         else:
-                            route1.Lock = False
-                            route1.removeAt('truck', i=req1Index)
-
+                            route1.removeAt(routeType='truck', i=req1Index)
                             requests[i][1] = newRoute
+                            mainList[newRoute.day].append(newRoute)
+    return (mainList)
 
 def getMainList(routes):
     mainList = [[] for i in range(Days+1)]
@@ -749,7 +773,7 @@ def getReqRouteDict(mainList):
     for i in range(Days+1):
         for route in mainList[i]:
             for request in route.seq:
-                requestDict[request.ID] = (request,route)
+                requestDict[request.ID] = [request,route]
     return (requestDict)
 
 def getReqDict(mainList):
@@ -762,7 +786,29 @@ def getReqDict(mainList):
         requestDict[i]=requests
     return (requestDict)
 
+def transformReqToTime(reqRouteDict):
+    requestDict = {}
+    for i in range(1,Days+1):
+        requests = []
+        for j in range(1,len(reqRouteDict)+1):
+            if reqRouteDict[j][1].day == i:
+                requests.append(reqRouteDict[j][0])
 
+        requestDict[i+1] = requests
+    return (requestDict)
+
+def backToMainList(reqDict):
+    mainList = [[] for i in range(Days + 1)]
+    for i in range(1,Days+1):
+        routes = []
+        for j in range(1,len(reqDict)+1):
+            if reqDict[j][1].day == i:
+                routes.append(reqDict[j][1])
+        routes = list(set(routes))
+
+        for route in routes:
+            mainList[i].append(route)
+    return mainList
 
 ############OPERATIONS FROM HERE############:
 
@@ -771,25 +817,25 @@ t = time.time()
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
-truckRoutes = combQuickSavings(iterations=100)
+#truckRoutes = combQuickSavings(iterations=100)
 
 MERGE_ROUTES=False
 
-#truckRoutes=QuickRouteAlgorithm(100,1)
+truckRoutes=QuickRouteAlgorithm(10000,2)
 #truckRoutes=savingsAlgorithm(timeWindow=True)
 
-
-mainList = getMainList(truckRoutes)
-reqRouteDict = getReqRouteDict(mainList)
+firstList = getMainList(truckRoutes)
+reqRouteDict = getReqRouteDict(firstList)
 
 improveTruckSolution(reqRouteDict)
-print(reqRouteDict)
 
+mainList = backToMainList(reqRouteDict)
 
-#requestDict = getReqDict(mainList)
-#techRoutes = techniciansSchedule(requestDict)
+requestDict = transformReqToTime(reqRouteDict)
 
-'''
+#request2Dict = getReqDict(firstList)
+techRoutes = techniciansSchedule(requestDict)
+
 printSolution()
 elapsed = time.time() - t
 print("SECONDS:",elapsed, '\n')
@@ -797,7 +843,7 @@ print("SECONDS:",elapsed, '\n')
 #run the solutionfile to get solutioncost:
 var = os.system('python3 SolutionVerolog2019.py ' + '-s ' +"SOLUTION_"+str(File[-5:-4])+".txt " + '-i ' + File)
 print(var)
-'''
+
 
 
 
