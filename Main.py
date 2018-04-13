@@ -5,6 +5,11 @@ import math
 import copy
 import random
 import time
+import argparse
+import SolutionVerolog2019
+import os
+import subprocess
+
 
 random.seed(2018)
 
@@ -23,8 +28,6 @@ TruckCost = Instance.TruckCost
 TechnicianDistanceCost =   Instance.TechnicianDistanceCost           
 TechnicianDayCost = Instance.TechnicianDayCost
 TechnicianCost = Instance.TechnicianCost
-
-
 
 Machines=Instance.Machines       #Machine objects have values: ID, size, idlePenalty
 Requests=Instance.Requests       #Request objects have values: ID, customerLocID, fromDay, toDay, machineID, amount, totalSize
@@ -65,7 +68,6 @@ def updateRDist(fromHere):
     for i in range(0,len(Requests)):
         dist=Distances[fromHere][Requests[i].customerLocID-1]
         Requests[i].dist=dist
-
 
 def get_size_per_request():
     for i in range(0,len(Requests)):
@@ -123,7 +125,7 @@ class Route(object):
                 b= self.seq[i].customerLocID
                 c= self.seq[i+1].customerLocID
                 self.dist = self.dist - Distances[a-1][b-1] - Distances[b-1][c-1] + Distances[a-1][b-1]
-
+         
             if(Route.Lock==True):
                 if routeType == 'truck':
                     return (removed, dist, self.load)
@@ -187,10 +189,10 @@ class Route(object):
 
         def addLast(self,request,routeType):
             newLast=request.customerLocID
-            if len(self.seq)>0:
+            if len(self.seq)>0: 
                 oldLast=self.seq[-1].customerLocID
                 dist= self.dist + Distances[oldLast-1][newLast-1] + Distances[newLast-1][self.homebase] - Distances[self.homebase][oldLast-1]
-            else:
+            else: 
                 dist= 2* Distances[newLast-1][self.homebase]
 
             if routeType == 'truck':
@@ -294,19 +296,19 @@ class Route(object):
 
         def mergeWith(self,routeType,mRoute,mergeType):
             newSeq=None
-            if(mergeType==0):
+            if(mergeType==0):   
                 newSeq=self.seq+mRoute.seq
                 a=self.seq[-1].customerLocID
                 b=mRoute.seq[0].customerLocID
-            elif(mergeType==1):
+            elif(mergeType==1): 
                 newSeq=self.seq+list(reversed(mRoute.seq))
                 a=self.seq[-1].customerLocID
                 b=mRoute.seq[-1].customerLocID
-            elif(mergeType==2):
+            elif(mergeType==2): 
                 newSeq=list(reversed(self.seq))+mRoute.seq
                 a=self.seq[0].customerLocID
                 b=mRoute.seq[0].customerLocID
-            elif(mergeType==3):
+            elif(mergeType==3): 
                 newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
                 a=self.seq[0].customerLocID
                 b=mRoute.seq[-1].customerLocID
@@ -351,7 +353,6 @@ class Route(object):
                 else:
                     return (Valid, dist, nrMachines)
 
-
 def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None):
     routes=[]
     if avRequests != None:
@@ -370,9 +371,6 @@ def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None
             r.add(closestReq[i], routeType)
             routes.append(r)
     return (routes)
-
-get_size_per_request()     #Assigns to each request the total size of the request
-Distances= getDistMatrix() #Builds distance matrix
 
 def getCosts(RouteList):
     cost=0
@@ -454,8 +452,8 @@ def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closes
 
     return(totalRoutes)
 
-#Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
 def techniciansSchedule(requestDict):
+    # Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
     availableTech = Technicians
     nonAvailableTech = []
     finalRouteList = []
@@ -478,9 +476,12 @@ def techniciansSchedule(requestDict):
                     technician = currAvailableTech[j]
                     closestReq = computeClosestReq(technician,currentRequests)
 
+
                     if len(closestReq) > 0:
                         avgDistance = computeAVG(column(closestReq,1))
-                        techList.append((technician,column(closestReq,0),avgDistance))
+                        cost = (1 - technician.usedBefore) * TechnicianCost + (
+                                    1 - technician.usedThisDay) * TechnicianDayCost +avgDistance*TechnicianDistanceCost
+                        techList.append((technician, column(closestReq, 0), cost))
 
                 if len(techList) > 0:
                     optimalTech = min(techList,key=lambda x:x[2])
@@ -495,6 +496,7 @@ def techniciansSchedule(requestDict):
                             currentRequests.remove(finalRoute.seq[k])
 
                         dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
+                        technician.usedBefore=True
 
                     if technician.stillAvailable():
                         technician.prevWorkDays += 1
@@ -569,8 +571,6 @@ def computeAVG(distList):
 
     return (sum/n)
 
-
-
 def combine(routes):
     mainList = [[] for i in range(Days+1)]
     for r in routes:
@@ -603,12 +603,9 @@ def combineRoutes(truckRoutes):
         finishedSolution.append(sortedRoutes[0])
     return finishedSolution
 
-
-
-
-#QuickRoute (I made this up): Prints routing solution which considers time windows
-# This is a stochastic algorithm and requires being run multiple times to get a good solution
 def QuickRoute(method=1):
+    # QuickRoute (I made this up): Prints routing solution which considers time windows
+    # This is a stochastic algorithm and requires being run multiple times to get a good solution
     routes=[]
     AvailableRequests= [ r for r in Requests]
     OnDay= [[] for i in range(0,Days)]
@@ -621,7 +618,7 @@ def QuickRoute(method=1):
                     OnDay[i].append(req)
         dayOrder= list(range(Days))
         random.shuffle(dayOrder)
-
+  
     elif(method==2): #Higher Variance, but slightly higher mean distance
         schedules=[(list(range(r.fromDay,r.toDay+1)),r) for r in Requests]
         for s in schedules:
@@ -638,10 +635,10 @@ def QuickRoute(method=1):
                 possible=r.add(toAdd,'truck')[0]
                 if(possible):
                     updateRDist(toAdd.customerLocID-1)
-                    AvailableRequests.remove(toAdd)
+                    AvailableRequests.remove(toAdd) 
                     for j in range(Days):
                         if toAdd in OnDay[j]:
-                            OnDay[j].remove(toAdd)
+                            OnDay[j].remove(toAdd) 
             r.day=i+1
             routes.append(r)
             if(MERGE_ROUTES):
@@ -732,35 +729,50 @@ def getReqDict(mainList):
         requestDict[i]=requests
     return (requestDict)
 
+
+
+############OPERATIONS FROM HERE############:
+
+t = time.time()
+
+get_size_per_request()     #Assigns to each request the total size of the request
+Distances= getDistMatrix() #Builds distance matrix
+
+truckRoutes = combQuickSavings(iterations=1)
+
+MERGE_ROUTES=False
+
+#truckRoutes=QuickRouteAlgorithm(100,1)
+#truckRoutes=savingsAlgorithm(timeWindow=True)
+
+
 mainList = getMainList(truckRoutes)
 reqRouteDict = getReqRouteDict(mainList)
 
 requestDict = getReqDict(mainList)
 techRoutes = techniciansSchedule(requestDict)
 
-print("SECONDS:",elapsed)
+printSolution()
+elapsed = time.time() - t
+print("SECONDS:",elapsed, '\n')
 
-def printSolution():
-    f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
-    f.write("DATASET = CO2018 freestyle \n")
-    f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
-
-    for i in range(1,Days+1):
-        currList = []
-        f.write("DAY = " + str(i) + "\n")
-        f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
-        for j in range(len(mainList[i])):
-            if(MERGE_ROUTES):
-                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
-            else:
-                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
-            f.write("\n")
-        f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
-        for j in range(len(techRoutes[i-1])):
-            f.write(str(techRoutes[i-1][j][0])+" "+' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]))
-            f.write("\n")
+#run the solutionfile to get solutioncost:
+var = os.system('python3 SolutionVerolog2019.py ' + '-s ' +"SOLUTION_"+str(File[-5:-4])+".txt " + '-i ' + File)
+print(var)
 
 
-#printSolution()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

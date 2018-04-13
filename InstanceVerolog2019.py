@@ -66,6 +66,9 @@ class InstanceVerolog2019(base.BaseParser):
             self.capabilities = capabilities
             self.prevWorkDays = 0
             self.breakDaysLeft = 0
+            self.usedBefore = False
+            self.usedThisDay=False
+
 
         def __repr__(self):
             return '%d %d %d %d %s' % (self.ID,self.locationID,self.maxDayDistance,self.maxNrInstallations, ' '.join(str(x) for x in self.capabilities))
