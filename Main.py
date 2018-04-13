@@ -34,6 +34,25 @@ Requests=Instance.Requests       #Request objects have values: ID, customerLocID
 Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
+def printSolution():
+    f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
+    f.write("DATASET = CO2018 freestyle \n")
+    f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
+
+    for i in range(1,Days+1):
+        currList = []
+        f.write("DAY = " + str(i) + "\n")
+        f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
+        for j in range(len(mainList[i])):
+            if(MERGE_ROUTES):
+                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
+            else:
+                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
+            f.write("\n")
+        f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
+        for j in range(len(techRoutes[i-1])):
+            f.write(str(techRoutes[i-1][j][0])+" "+' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]))
+            f.write("\n")
 
 def showMap(RoutesList,Tech=False,ViewSize=False):
     color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
@@ -691,19 +710,6 @@ def improveTruckSolution(requests):
                 route2 = requests[j][1]
                 route1.Lock = route2.Lock = True
 
-
-
-truckRoutes = combQuickSavings(iterations=100)
-
-MERGE_ROUTES=False
-
-t = time.time()
-
-#truckRoutes=QuickRouteAlgorithm(1,2)
-#truckRoutes=savingsAlgorithm(timeWindow=True)
-
-elapsed = time.time() - t
-
 def getMainList(routes):
     mainList = [[] for i in range(Days+1)]
     for r in routes:
@@ -738,7 +744,7 @@ t = time.time()
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
-truckRoutes = combQuickSavings(iterations=1)
+truckRoutes = combQuickSavings(iterations=100)
 
 MERGE_ROUTES=False
 
