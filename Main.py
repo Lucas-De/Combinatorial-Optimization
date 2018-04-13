@@ -297,21 +297,12 @@ class Route(object):
         def printSeq(self):
             print([i.ID for i in self.seq])
 
-        def containsRequest(self,requestID):
-            contains = False
+        def getReqIndex(self,requestID):
+            index = None
             for i in range(len(self.seq)):
                 if self.seq[i].ID == requestID:
-                    contains = True
-            return (contains)
-
-        def isExtreme(self,requestID):
-            if self.seq[0].ID == requestID:
-                self.seq.reverse()
-                return (True)
-            elif self.seq[len(self.seq) - 1].ID == requestID:
-                return (True)
-            else:
-                return (False)
+                    index = i
+            return (index)
 
         def mergeWith(self,routeType,mRoute,mergeType):
             newSeq=None
@@ -350,9 +341,6 @@ class Route(object):
                     return (Valid, dist, load)
                 else:
                     return (Valid, dist, load)
-
-
-
             elif routeType == 'technician':
                 nrMachines = self.nrMachines + mRoute.nrMachines
                 dist=self.dist+mRoute.dist
@@ -703,12 +691,51 @@ def combQuickSavings(iterations=1):
     return (optRoutes)
 
 def improveTruckSolution(requests):
-    for i in range(len(requests)):
-        for j in range(len(requests)):
+    for i in range(1,len(requests)+1):
+        for j in range(1,len(requests)+1):
             if i != j:
                 route1 = requests[i][1]
                 route2 = requests[j][1]
                 route1.Lock = route2.Lock = True
+
+                req1 = requests[i][0]
+
+                if req1.fromDay <= route2.day <= req1.toDay:
+                    previousDist = getCosts([route1,route2])
+
+                    req1Index = route1.getReqIndex(i)
+                    req2Index = route2.getReqIndex(j)
+
+                    (removed, dist1, load1) = route1.removeAt(routeType='truck',i=req1Index)
+                    (valid, dist2, load2) = route2.add(req1,routeType='truck',i=req2Index)
+
+                    costImprovement = 0
+                    if len(route1.seq) == 1:
+                        costImprovement += TruckDayCost
+
+                    if valid:
+                        currentDist = dist1 + dist2
+                    else:
+                        costImprovement -= TruckDayCost
+                        newRoute = Route('truck')
+                        newRoute.add(req1,'truck')
+                        newRoute.day = route2.day
+                        currentDist = dist1 + newRoute.dist + route2.dist
+
+                    costImprovement += (previousDist - currentDist)
+
+                    if costImprovement > 0:
+                        if valid:
+                            route1.Lock = route2.Lock = False
+                            route1.removeAt('truck', i=req1Index)
+                            route2.add(req1, 'truck', i=req2Index)
+
+                            requests[i][1] = route2
+                        else:
+                            route1.Lock = False
+                            route1.removeAt('truck', i=req1Index)
+
+                            requests[i][1] = newRoute
 
 def getMainList(routes):
     mainList = [[] for i in range(Days+1)]
@@ -755,9 +782,14 @@ MERGE_ROUTES=False
 mainList = getMainList(truckRoutes)
 reqRouteDict = getReqRouteDict(mainList)
 
-requestDict = getReqDict(mainList)
-techRoutes = techniciansSchedule(requestDict)
+improveTruckSolution(reqRouteDict)
+print(reqRouteDict)
 
+
+#requestDict = getReqDict(mainList)
+#techRoutes = techniciansSchedule(requestDict)
+
+'''
 printSolution()
 elapsed = time.time() - t
 print("SECONDS:",elapsed, '\n')
@@ -765,7 +797,7 @@ print("SECONDS:",elapsed, '\n')
 #run the solutionfile to get solutioncost:
 var = os.system('python3 SolutionVerolog2019.py ' + '-s ' +"SOLUTION_"+str(File[-5:-4])+".txt " + '-i ' + File)
 print(var)
-
+'''
 
 
 
