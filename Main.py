@@ -761,6 +761,7 @@ def getMainList(routes):
         mainList[index].append(r)
     return (mainList)
 
+#creates a dictionary with key:requestID and value:[request,route], this is used as input for the improvements algorithm
 def getReqRouteDict(mainList):
     requestDict={}
     for i in range(Days+1):
@@ -769,16 +770,7 @@ def getReqRouteDict(mainList):
                 requestDict[request.ID] = [request,route]
     return (requestDict)
 
-def getReqDict(mainList):
-    requestDict={}
-    for i in range(2,Days+1):
-        requests =[]
-        for route in mainList[i-1]:
-            for request in route.seq:
-                requests.append(request)
-        requestDict[i]=requests
-    return (requestDict)
-
+#creates a dictionary where reqRouteDict is transformed so that it can be used for the technicians algorithm, key:day and value:[requests]
 def transformReqToTime(reqRouteDict):
     requestDict = {}
     for i in range(1,Days+1):
@@ -790,6 +782,18 @@ def transformReqToTime(reqRouteDict):
         requestDict[i+1] = requests
     return (requestDict)
 
+#creates a dictionary for the technicians algorithm, key:day and value:[requests], this method can be used when improvements algorithm is not used
+def getReqDict(mainList):
+    requestDict={}
+    for i in range(2,Days+1):
+        requests =[]
+        for route in mainList[i-1]:
+            for request in route.seq:
+                requests.append(request)
+        requestDict[i]=requests
+    return (requestDict)
+
+#transform the reqRouteDict back to the main list for output, a list of routes sorted by day
 def backToMainList(reqDict):
     mainList = [[] for i in range(Days + 1)]
     for i in range(1,Days+1):
