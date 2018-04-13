@@ -24,13 +24,30 @@ TechnicianDistanceCost =   Instance.TechnicianDistanceCost
 TechnicianDayCost = Instance.TechnicianDayCost
 TechnicianCost = Instance.TechnicianCost
 
-
- 
 Machines=Instance.Machines       #Machine objects have values: ID, size, idlePenalty
 Requests=Instance.Requests       #Request objects have values: ID, customerLocID, fromDay, toDay, machineID, amount, totalSize
 Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
+def printSolution():
+    f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
+    f.write("DATASET = CO2018 freestyle \n")
+    f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
+
+    for i in range(1,Days+1):
+        currList = []
+        f.write("DAY = " + str(i) + "\n")
+        f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
+        for j in range(len(mainList[i])):
+            if(MERGE_ROUTES):
+                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
+            else:
+                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
+            f.write("\n")
+        f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
+        for j in range(len(techRoutes[i-1])):
+            f.write(str(techRoutes[i-1][j][0])+" "+' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]))
+            f.write("\n")
 
 def showMap(RoutesList,Tech=False,ViewSize=False):
     color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
@@ -65,7 +82,6 @@ def updateRDist(fromHere):
     for i in range(0,len(Requests)):
         dist=Distances[fromHere][Requests[i].customerLocID-1]
         Requests[i].dist=dist
-
 
 def get_size_per_request():
     for i in range(0,len(Requests)):
@@ -351,7 +367,6 @@ class Route(object):
                 else:
                     return (Valid, dist, nrMachines)
 
-
 def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None):
     routes=[]
     if avRequests != None:
@@ -370,9 +385,6 @@ def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None
             r.add(closestReq[i], routeType)
             routes.append(r)
     return (routes)
-
-get_size_per_request()     #Assigns to each request the total size of the request
-Distances= getDistMatrix() #Builds distance matrix
 
 def getCosts(RouteList):
     cost=0
@@ -415,8 +427,8 @@ def mergeBestPair(routes,routeType):
     del routes[bestPair[1]]
     return True
 
-#Savings Algorithm
 def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closestReq=None,routeType='truck'):
+    # Savings Algorithm
     totalRoutes = []
     if (timeWindow):
         totRequests = copy.deepcopy(Requests)
@@ -454,8 +466,8 @@ def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closes
 
     return(totalRoutes)
 
-#Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
 def techniciansSchedule(requestDict):
+    # Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
     availableTech = Technicians
     nonAvailableTech = []
     finalRouteList = []
@@ -569,8 +581,6 @@ def computeAVG(distList):
 
     return (sum/n)
 
-
-
 def combine(routes):
     mainList = [[] for i in range(Days+1)]
     for r in routes:
@@ -603,12 +613,9 @@ def combineRoutes(truckRoutes):
         finishedSolution.append(sortedRoutes[0])
     return finishedSolution
 
-
-
-
-#QuickRoute (I made this up): Prints routing solution which considers time windows
-# This is a stochastic algorithm and requires being run multiple times to get a good solution
 def QuickRoute(method=1):
+    # QuickRoute (I made this up): Prints routing solution which considers time windows
+    # This is a stochastic algorithm and requires being run multiple times to get a good solution
     routes=[]
     AvailableRequests= [ r for r in Requests]
     OnDay= [[] for i in range(0,Days)]
@@ -686,17 +693,6 @@ def combQuickSavings(iterations=1):
 
     return (optRoutes)
 
-truckRoutes = combQuickSavings(iterations=100)
-
-MERGE_ROUTES=False
-
-t = time.time()
-
-#truckRoutes=QuickRouteAlgorithm(1,2)
-#truckRoutes=savingsAlgorithm(timeWindow=True)
-
-elapsed = time.time() - t
-
 def getMainList(routes):
     mainList = [[] for i in range(Days+1)]
     for r in routes:
@@ -714,36 +710,36 @@ def getReqDict(mainList):
         requestDict[i]=abc
     return (requestDict)
 
+
+
+############OPERATIONS FROM HERE############:
+
+t = time.time()
+
+get_size_per_request()     #Assigns to each request the total size of the request
+Distances= getDistMatrix() #Builds distance matrix
+
+truckRoutes = combQuickSavings(iterations=10)
+
+MERGE_ROUTES=False
+
+#truckRoutes=QuickRouteAlgorithm(1,2)
+#truckRoutes=savingsAlgorithm(timeWindow=True)
+
+
 mainList = getMainList(truckRoutes)
 requestDict = getReqDict(mainList)
 techRoutes = techniciansSchedule(requestDict)
 
+
+printSolution()
+elapsed = time.time() - t
 print("SECONDS:",elapsed)
 
 
 
 
-def printSolution():
-    f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
-    f.write("DATASET = CO2018 freestyle \n")
-    f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
-
-    for i in range(1,Days+1):
-        currList = []
-        f.write("DAY = " + str(i) + "\n")
-        f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
-        for j in range(len(mainList[i])):
-            if(MERGE_ROUTES):
-                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
-            else:
-                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
-            f.write("\n")
-        f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
-        for j in range(len(techRoutes[i-1])):
-            f.write(str(techRoutes[i-1][j][0])+" "+' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]))
-            f.write("\n")
 
 
-printSolution()
 
 
