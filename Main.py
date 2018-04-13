@@ -8,7 +8,7 @@ import time
 
 random.seed(2018)
 
-File= "Instances/CO2018_10.txt"
+File= "Instances/CO2018_2.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -24,13 +24,30 @@ TechnicianDistanceCost =   Instance.TechnicianDistanceCost
 TechnicianDayCost = Instance.TechnicianDayCost
 TechnicianCost = Instance.TechnicianCost
 
-
- 
 Machines=Instance.Machines       #Machine objects have values: ID, size, idlePenalty
 Requests=Instance.Requests       #Request objects have values: ID, customerLocID, fromDay, toDay, machineID, amount, totalSize
 Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
+def printSolution():
+    f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
+    f.write("DATASET = CO2018 freestyle \n")
+    f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
+
+    for i in range(1,Days+1):
+        currList = []
+        f.write("DAY = " + str(i) + "\n")
+        f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
+        for j in range(len(mainList[i])):
+            if(MERGE_ROUTES):
+                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
+            else:
+                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
+            f.write("\n")
+        f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
+        for j in range(len(techRoutes[i-1])):
+            f.write(str(techRoutes[i-1][j][0])+" "+' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]))
+            f.write("\n")
 
 def showMap(RoutesList,Tech=False,ViewSize=False):
     color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
@@ -65,7 +82,6 @@ def updateRDist(fromHere):
     for i in range(0,len(Requests)):
         dist=Distances[fromHere][Requests[i].customerLocID-1]
         Requests[i].dist=dist
-
 
 def get_size_per_request():
     for i in range(0,len(Requests)):
@@ -351,7 +367,6 @@ class Route(object):
                 else:
                     return (Valid, dist, nrMachines)
 
-
 def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None):
     routes=[]
     if avRequests != None:
@@ -370,9 +385,6 @@ def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None
             r.add(closestReq[i], routeType)
             routes.append(r)
     return (routes)
-
-get_size_per_request()     #Assigns to each request the total size of the request
-Distances= getDistMatrix() #Builds distance matrix
 
 def getCosts(RouteList):
     cost=0
@@ -415,36 +427,36 @@ def mergeBestPair(routes,routeType):
     del routes[bestPair[1]]
     return True
 
-#Savings Algorithm
 def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closestReq=None,routeType='truck'):
+    # Savings Algorithm
     totalRoutes = []
-    if (timeWindow):                                                                    #to consider time windows
+    if (timeWindow):
         totRequests = copy.deepcopy(Requests)
         for i in range(Days):
             day = i + 1
             currAvRequests = []
             for request in totRequests:
-                if request.fromDay <= day and day <= request.toDay:                     #add all available requests that haven't been delivered yet
+                if request.fromDay <= day and day <= request.toDay:
                     currAvRequests.append(request)
 
             for request in currAvRequests:
-                totRequests.remove(request)                                             #remove requests that will be delivered from total requests
+                totRequests.remove(request)
 
-            routes = initRoutes(technician, closestReq, routeType,currAvRequests)       #create initial routes, one truck for each leg between request and depot
+            routes = initRoutes(technician, closestReq, routeType,currAvRequests)
             possible = True
             while (possible):
-                possible = mergeBestPair(routes, routeType)                             #merge routes until not possible anymore
+                possible = mergeBestPair(routes, routeType)
 
-            for route in routes:                                                        #append routes to a total list of routes
+            for route in routes:
                 route.day = day
                 totalRoutes.append(route)
     elif (randomRequests != None):
-        totalRoutes = initRoutes(routeType='truck',avRequests=randomRequests)           #only create initial routes between set of generated requests and depot
+        totalRoutes = initRoutes(routeType='truck',avRequests=randomRequests)
         possible = True
         while (possible):
             possible = mergeBestPair(totalRoutes, routeType)
     else:
-        totalRoutes = initRoutes(technician,closestReq,routeType)                       #create initial routes between technician and closest requests
+        totalRoutes = initRoutes(technician,closestReq,routeType)
         possible=True
         while(possible):
             possible=mergeBestPair(totalRoutes,routeType)
@@ -454,60 +466,63 @@ def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closes
 
     return(totalRoutes)
 
-#Initial algorithm to create a schedule for the technicians, input is a dictionary of available requests for each day
 def techniciansSchedule(requestDict):
+    # Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
     availableTech = Technicians
     nonAvailableTech = []
     finalRouteList = []
     currentRequests = []
 
     for i in range(1,Days+1):
+
         if i in requestDict:
             dayRequests=requestDict[i]
             for request in dayRequests:
-                currentRequests.append(request)                                                 #keep track of current available requests
+                currentRequests.append(request)
 
-        currAvailableTech = [t for t in availableTech]                                          #list of current available technicians
+        currAvailableTech = [t for t in availableTech]
         dailyRouteList = []
 
         if currAvailableTech != None and currentRequests != None:
-            while len(currAvailableTech) > 0 and len(currentRequests) > 0:                      #continue until there are no technicians and/or requests available
+            while len(currAvailableTech) > 0 and len(currentRequests) > 0:
                 techList = []
                 for j in range(len(currAvailableTech)):
                     technician = currAvailableTech[j]
-                    closestReq = computeClosestReq(technician,currentRequests)                  #compute closest requests for each technician
+                    closestReq = computeClosestReq(technician,currentRequests)
 
                     if len(closestReq) > 0:
-                        avgDistance = computeAVG(column(closestReq,1))                          #compute average distance for each technician and store it in a list
+                        avgDistance = computeAVG(column(closestReq,1))
                         techList.append((technician,column(closestReq,0),avgDistance))
 
                 if len(techList) > 0:
-                    optimalTech = min(techList,key=lambda x:x[2])                                                           #select technician with smallest average distance
-                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')   #use savingsAlgorithm to create routes for this technician
+                    optimalTech = min(techList,key=lambda x:x[2])
+                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
 
                     technician = optimalTech[0]
                     if routes != None and len(routes[0].seq) !=0:
-                        finalRoute = getLargestRoute(routes)                                    #select the largest route from the set of routes created by the savingsAlgorithm
+                        finalRoute = getLargestRoute(routes)
                         finalRoute.day = i
 
                         for k in range(len(finalRoute.seq)):
-                            currentRequests.remove(finalRoute.seq[k])                           #remove requests that will be installed from total list of requests
+                            currentRequests.remove(finalRoute.seq[k])
 
-                        dailyRouteList.append((technician.ID,finalRoute))                       #append tech ID and daily routes to list
+                        dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
 
-                    if technician.stillAvailable():                                             #check availability of technicians and update working days
+                    if technician.stillAvailable():
                         technician.prevWorkDays += 1
                     else:
                         technician.breakDaysLeft = 3
                         technician.prevWorkDays = 0
                         availableTech.remove(technician)
                         nonAvailableTech.append(technician)
-                currAvailableTech.remove(technician)                                            #remove technician from list of current day available technicians
+                currAvailableTech.remove(technician)
+
+
 
         for t in nonAvailableTech:
             t.breakDaysLeft -= 1
 
-            if t.availableAgain():                                                              #check which non available technicians are available again the next day
+            if t.availableAgain():
                 availableTech.append(t)
                 nonAvailableTech.remove(t)
 
@@ -598,12 +613,9 @@ def combineRoutes(truckRoutes):
         finishedSolution.append(sortedRoutes[0])
     return finishedSolution
 
-
-
-
-#QuickRoute (I made this up): Prints routing solution which considers time windows
-# This is a stochastic algorithm and requires being run multiple times to get a good solution
 def QuickRoute(method=1):
+    # QuickRoute (I made this up): Prints routing solution which considers time windows
+    # This is a stochastic algorithm and requires being run multiple times to get a good solution
     routes=[]
     AvailableRequests= [ r for r in Requests]
     OnDay= [[] for i in range(0,Days)]
@@ -667,30 +679,19 @@ def combQuickSavings(iterations=1):
             OnDay[random.choice(s[0])-1].append(s[1])
 
         totRoutes = []
-        j = 1
+        i = 1
         for requests in OnDay:
             routes = savingsAlgorithm(randomRequests=requests)
             for route in routes:
-                route.day = j
+                route.day = i
                 totRoutes.append(route)
-            j += 1
+            i += 1
         cost = getCosts(totRoutes)
         if (cost < optCost):
             optCost = cost
             optRoutes = totRoutes
 
     return (optRoutes)
-
-truckRoutes = combQuickSavings(iterations=100)
-
-MERGE_ROUTES=False
-
-t = time.time()
-
-#truckRoutes=QuickRouteAlgorithm(1,2)
-#truckRoutes=savingsAlgorithm(timeWindow=True)
-
-elapsed = time.time() - t
 
 def getMainList(routes):
     mainList = [[] for i in range(Days+1)]
@@ -709,36 +710,36 @@ def getReqDict(mainList):
         requestDict[i]=abc
     return (requestDict)
 
+
+
+############OPERATIONS FROM HERE############:
+
+t = time.time()
+
+get_size_per_request()     #Assigns to each request the total size of the request
+Distances= getDistMatrix() #Builds distance matrix
+
+truckRoutes = combQuickSavings(iterations=10)
+
+MERGE_ROUTES=False
+
+#truckRoutes=QuickRouteAlgorithm(1,2)
+#truckRoutes=savingsAlgorithm(timeWindow=True)
+
+
 mainList = getMainList(truckRoutes)
 requestDict = getReqDict(mainList)
 techRoutes = techniciansSchedule(requestDict)
 
+
+printSolution()
+elapsed = time.time() - t
 print("SECONDS:",elapsed)
 
 
 
 
-def printSolution():
-    f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
-    f.write("DATASET = CO2018 freestyle \n")
-    f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
-
-    for i in range(1,Days+1):
-        currList = []
-        f.write("DAY = " + str(i) + "\n")
-        f.write("NUMBER_OF_TRUCKS = " + str(len(mainList[i])) + "\n")
-        for j in range(len(mainList[i])):
-            if(MERGE_ROUTES):
-                f.write(str(j+1) + " "+' '.join([str(k) for k in mainList[i][j].truePath]))
-            else:
-                f.write(str(j+1) + " "+' '.join([str(k.ID) for k in mainList[i][j].seq]))
-            f.write("\n")
-        f.write("NUMBER_OF_TECHNICIANS = " + str(len(techRoutes[i-1])) + "\n")
-        for j in range(len(techRoutes[i-1])):
-            f.write(str(techRoutes[i-1][j][0])+" "+' '.join([str(k.ID) for k in techRoutes[i-1][j][1].seq]))
-            f.write("\n")
 
 
-printSolution()
 
 
