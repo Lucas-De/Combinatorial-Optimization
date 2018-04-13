@@ -5,10 +5,15 @@ import math
 import copy
 import random
 import time
+import argparse
+import SolutionVerolog2019
+import os
+import subprocess
+
 
 random.seed(2018)
 
-File= "Instances/CO2018_2.txt"
+File= "Instances/CO2018_9.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -17,10 +22,10 @@ Name = Instance.Name
 Days =  Instance.Days
 TruckCapacity = Instance.TruckCapacity
 TruckMaxDistance = Instance.TruckMaxDistance
-TruckDistanceCost =  Instance.TruckDistanceCost           
+TruckDistanceCost =  Instance.TruckDistanceCost
 TruckDayCost = Instance.TruckDistanceCost
-TruckCost = Instance.TruckCost 
-TechnicianDistanceCost =   Instance.TechnicianDistanceCost           
+TruckCost = Instance.TruckCost
+TechnicianDistanceCost =   Instance.TechnicianDistanceCost
 TechnicianDayCost = Instance.TechnicianDayCost
 TechnicianCost = Instance.TechnicianCost
 
@@ -139,7 +144,7 @@ class Route(object):
                 b= self.seq[i].customerLocID
                 c= self.seq[i+1].customerLocID
                 self.dist = self.dist - Distances[a-1][b-1] - Distances[b-1][c-1] + Distances[a-1][b-1]
-         
+
             if(Route.Lock==True):
                 if routeType == 'truck':
                     return (removed, dist, self.load)
@@ -203,10 +208,10 @@ class Route(object):
 
         def addLast(self,request,routeType):
             newLast=request.customerLocID
-            if len(self.seq)>0: 
+            if len(self.seq)>0:
                 oldLast=self.seq[-1].customerLocID
                 dist= self.dist + Distances[oldLast-1][newLast-1] + Distances[newLast-1][self.homebase] - Distances[self.homebase][oldLast-1]
-            else: 
+            else:
                 dist= 2* Distances[newLast-1][self.homebase]
 
             if routeType == 'truck':
@@ -310,19 +315,19 @@ class Route(object):
 
         def mergeWith(self,routeType,mRoute,mergeType):
             newSeq=None
-            if(mergeType==0):   
+            if(mergeType==0):
                 newSeq=self.seq+mRoute.seq
                 a=self.seq[-1].customerLocID
                 b=mRoute.seq[0].customerLocID
-            elif(mergeType==1): 
+            elif(mergeType==1):
                 newSeq=self.seq+list(reversed(mRoute.seq))
                 a=self.seq[-1].customerLocID
                 b=mRoute.seq[-1].customerLocID
-            elif(mergeType==2): 
+            elif(mergeType==2):
                 newSeq=list(reversed(self.seq))+mRoute.seq
                 a=self.seq[0].customerLocID
                 b=mRoute.seq[0].customerLocID
-            elif(mergeType==3): 
+            elif(mergeType==3):
                 newSeq=list(reversed(self.seq))+list(reversed(mRoute.seq))
                 a=self.seq[0].customerLocID
                 b=mRoute.seq[-1].customerLocID
@@ -490,9 +495,12 @@ def techniciansSchedule(requestDict):
                     technician = currAvailableTech[j]
                     closestReq = computeClosestReq(technician,currentRequests)
 
+
                     if len(closestReq) > 0:
                         avgDistance = computeAVG(column(closestReq,1))
-                        techList.append((technician,column(closestReq,0),avgDistance))
+                        cost = (1 - technician.usedBefore) * TechnicianCost + (
+                                    1 - technician.usedThisDay) * TechnicianDayCost +avgDistance*TechnicianDistanceCost
+                        techList.append((technician, column(closestReq, 0), cost))
 
                 if len(techList) > 0:
                     optimalTech = min(techList,key=lambda x:x[2])
@@ -507,6 +515,7 @@ def techniciansSchedule(requestDict):
                             currentRequests.remove(finalRoute.seq[k])
 
                         dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
+                        technician.usedBefore=True
 
                     if technician.stillAvailable():
                         technician.prevWorkDays += 1
@@ -628,7 +637,7 @@ def QuickRoute(method=1):
                     OnDay[i].append(req)
         dayOrder= list(range(Days))
         random.shuffle(dayOrder)
-  
+
     elif(method==2): #Higher Variance, but slightly higher mean distance
         schedules=[(list(range(r.fromDay,r.toDay+1)),r) for r in Requests]
         for s in schedules:
@@ -645,10 +654,10 @@ def QuickRoute(method=1):
                 possible=r.add(toAdd,'truck')[0]
                 if(possible):
                     updateRDist(toAdd.customerLocID-1)
-                    AvailableRequests.remove(toAdd) 
+                    AvailableRequests.remove(toAdd)
                     for j in range(Days):
                         if toAdd in OnDay[j]:
-                            OnDay[j].remove(toAdd) 
+                            OnDay[j].remove(toAdd)
             r.day=i+1
             routes.append(r)
             if(MERGE_ROUTES):
@@ -719,11 +728,11 @@ t = time.time()
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
-truckRoutes = combQuickSavings(iterations=10)
+truckRoutes = combQuickSavings(iterations=1)
 
 MERGE_ROUTES=False
 
-#truckRoutes=QuickRouteAlgorithm(1,2)
+#truckRoutes=QuickRouteAlgorithm(100,1)
 #truckRoutes=savingsAlgorithm(timeWindow=True)
 
 
@@ -731,10 +740,22 @@ mainList = getMainList(truckRoutes)
 requestDict = getReqDict(mainList)
 techRoutes = techniciansSchedule(requestDict)
 
-
 printSolution()
 elapsed = time.time() - t
-print("SECONDS:",elapsed)
+print("SECONDS:",elapsed, '\n')
+
+#run the solutionfile to get solutioncost:
+var = os.system('python3 SolutionVerolog2019.py ' + '-s ' +"SOLUTION_"+str(File[-5:-4])+".txt " + '-i ' + File)
+print(var)
+
+
+
+
+
+
+
+
+
 
 
 
