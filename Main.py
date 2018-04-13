@@ -571,12 +571,15 @@ def computeClosestReq(technician,requests):
     n = 0
     while len(sortedDist) > 0:
         currentReq = sortedDist.pop()
-        n += currentReq[0].amount
+        #n += currentReq[0].amount
+        n += 1
 
         if n <= technician.maxNrInstallations:
             nClosest.append(currentReq)
         else:
-            n -= currentReq[0].amount
+            #n -= currentReq[0].amount
+            break
+
 
     return nClosest
 
@@ -811,18 +814,18 @@ def backToMainList(reqDict):
     return mainList
 
 ############OPERATIONS FROM HERE############:
-
 t = time.time()
+
+MERGE_ROUTES=True
 
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
 #truckRoutes = combQuickSavings(iterations=100)
 
-MERGE_ROUTES=False
 
-truckRoutes=QuickRouteAlgorithm(10000,2)
-#truckRoutes=savingsAlgorithm(timeWindow=True)
+truckRoutes=QuickRouteAlgorithm(200,2)
+#truckRoutes=savingsAlgorithm(timeWindow=False)
 
 firstList = getMainList(truckRoutes)
 reqRouteDict = getReqRouteDict(firstList)
