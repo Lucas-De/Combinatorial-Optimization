@@ -8,7 +8,7 @@ import time
 
 random.seed(2018)
 
-File= "Instances/CO2018_2.txt"
+File= "Instances/CO2018_10.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -418,33 +418,33 @@ def mergeBestPair(routes,routeType):
 #Savings Algorithm
 def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closestReq=None,routeType='truck'):
     totalRoutes = []
-    if (timeWindow):
+    if (timeWindow):                                                                    #to consider time windows
         totRequests = copy.deepcopy(Requests)
         for i in range(Days):
             day = i + 1
             currAvRequests = []
             for request in totRequests:
-                if request.fromDay <= day and day <= request.toDay:
+                if request.fromDay <= day and day <= request.toDay:                     #add all available requests that haven't been delivered yet
                     currAvRequests.append(request)
 
             for request in currAvRequests:
-                totRequests.remove(request)
+                totRequests.remove(request)                                             #remove requests that will be delivered from total requests
 
-            routes = initRoutes(technician, closestReq, routeType,currAvRequests)
+            routes = initRoutes(technician, closestReq, routeType,currAvRequests)       #create initial routes, one truck for each leg between request and depot
             possible = True
             while (possible):
-                possible = mergeBestPair(routes, routeType)
+                possible = mergeBestPair(routes, routeType)                             #merge routes until not possible anymore
 
-            for route in routes:
+            for route in routes:                                                        #append routes to a total list of routes
                 route.day = day
                 totalRoutes.append(route)
     elif (randomRequests != None):
-        totalRoutes = initRoutes(routeType='truck',avRequests=randomRequests)
+        totalRoutes = initRoutes(routeType='truck',avRequests=randomRequests)           #only create initial routes between set of generated requests and depot
         possible = True
         while (possible):
             possible = mergeBestPair(totalRoutes, routeType)
     else:
-        totalRoutes = initRoutes(technician,closestReq,routeType)
+        totalRoutes = initRoutes(technician,closestReq,routeType)                       #create initial routes between technician and closest requests
         possible=True
         while(possible):
             possible=mergeBestPair(totalRoutes,routeType)
@@ -454,7 +454,7 @@ def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closes
 
     return(totalRoutes)
 
-#Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
+#Initial algorithm to create a schedule for the technicians, input is a dictionary of available requests for each day
 def techniciansSchedule(requestDict):
     availableTech = Technicians
     nonAvailableTech = []
@@ -462,55 +462,52 @@ def techniciansSchedule(requestDict):
     currentRequests = []
 
     for i in range(1,Days+1):
-
         if i in requestDict:
             dayRequests=requestDict[i]
             for request in dayRequests:
-                currentRequests.append(request)
+                currentRequests.append(request)                                                 #keep track of current available requests
 
-        currAvailableTech = [t for t in availableTech]
+        currAvailableTech = [t for t in availableTech]                                          #list of current available technicians
         dailyRouteList = []
 
         if currAvailableTech != None and currentRequests != None:
-            while len(currAvailableTech) > 0 and len(currentRequests) > 0:
+            while len(currAvailableTech) > 0 and len(currentRequests) > 0:                      #continue until there are no technicians and/or requests available
                 techList = []
                 for j in range(len(currAvailableTech)):
                     technician = currAvailableTech[j]
-                    closestReq = computeClosestReq(technician,currentRequests)
+                    closestReq = computeClosestReq(technician,currentRequests)                  #compute closest requests for each technician
 
                     if len(closestReq) > 0:
-                        avgDistance = computeAVG(column(closestReq,1))
+                        avgDistance = computeAVG(column(closestReq,1))                          #compute average distance for each technician and store it in a list
                         techList.append((technician,column(closestReq,0),avgDistance))
 
                 if len(techList) > 0:
-                    optimalTech = min(techList,key=lambda x:x[2])
-                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
+                    optimalTech = min(techList,key=lambda x:x[2])                                                           #select technician with smallest average distance
+                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')   #use savingsAlgorithm to create routes for this technician
 
                     technician = optimalTech[0]
                     if routes != None and len(routes[0].seq) !=0:
-                        finalRoute = getLargestRoute(routes)
+                        finalRoute = getLargestRoute(routes)                                    #select the largest route from the set of routes created by the savingsAlgorithm
                         finalRoute.day = i
 
                         for k in range(len(finalRoute.seq)):
-                            currentRequests.remove(finalRoute.seq[k])
+                            currentRequests.remove(finalRoute.seq[k])                           #remove requests that will be installed from total list of requests
 
-                        dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
+                        dailyRouteList.append((technician.ID,finalRoute))                       #append tech ID and daily routes to list
 
-                    if technician.stillAvailable():
+                    if technician.stillAvailable():                                             #check availability of technicians and update working days
                         technician.prevWorkDays += 1
                     else:
                         technician.breakDaysLeft = 3
                         technician.prevWorkDays = 0
                         availableTech.remove(technician)
                         nonAvailableTech.append(technician)
-                currAvailableTech.remove(technician)
-
-
+                currAvailableTech.remove(technician)                                            #remove technician from list of current day available technicians
 
         for t in nonAvailableTech:
             t.breakDaysLeft -= 1
 
-            if t.availableAgain():
+            if t.availableAgain():                                                              #check which non available technicians are available again the next day
                 availableTech.append(t)
                 nonAvailableTech.remove(t)
 
@@ -568,8 +565,6 @@ def computeAVG(distList):
         sum = sum + distList[i]
 
     return (sum/n)
-
-
 
 def combine(routes):
     mainList = [[] for i in range(Days+1)]
@@ -672,13 +667,13 @@ def combQuickSavings(iterations=1):
             OnDay[random.choice(s[0])-1].append(s[1])
 
         totRoutes = []
-        i = 1
+        j = 1
         for requests in OnDay:
             routes = savingsAlgorithm(randomRequests=requests)
             for route in routes:
-                route.day = i
+                route.day = j
                 totRoutes.append(route)
-            i += 1
+            j += 1
         cost = getCosts(totRoutes)
         if (cost < optCost):
             optCost = cost
