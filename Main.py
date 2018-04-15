@@ -13,7 +13,7 @@ import subprocess
 
 random.seed(2018)
 
-File= "Instances/CO2018_1.txt"
+File= "Instances/CO2018_7.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -710,49 +710,75 @@ def combQuickSavings(iterations=1):
 
     return (optRoutes)
 
-def improveTruckSolution(requests):
-    for i in range(1,len(requests)+1):
-        for j in range(1,len(requests)+1):
-            if i != j:
-                route1 = requests[i][1]
-                route2 = requests[j][1]
+def improveTruckSolution(requests,iterations):
+    REQUESTS=requests
+    for iteration in range(iterations):
 
-                Route.Lock = True
+        COST_IMP=-1000000000
+        I=None
+        J=None
+        VALID=None
 
-                req1 = requests[i][0]
+        Route.Lock = True
+        for i in range(1,len(REQUESTS)+1):
+            for j in range(1,len(REQUESTS)+1):
+                if i != j:
+                    route1 = REQUESTS[i][1]
+                    route2 = REQUESTS[j][1]
 
-                if req1.fromDay <= route2.day <= req1.toDay:                                    #check time constraints
-                    previousDist = getCosts([route1,route2])                                    #distance of old routes
+                    req1 = REQUESTS[i][0]
 
-                    req1Index = route1.getReqIndex(i)                                           #index of request1
-                    req2Index = route2.getReqIndex(j)                                           #index of request2
+                    if req1.fromDay <= route2.day <= req1.toDay:                                    #check time constraints
+                        previousDist = getCosts([route1,route2])                                    #distance of old routes
 
-                    (removed, dist1, load1) = route1.removeAt(routeType='truck',i=req1Index)    #remove request1 from route1
-                    (valid, dist2, load2) = route2.add(req1,routeType='truck',i=req2Index)      #add request1 to route2
+                        req1Index = route1.getReqIndex(i)                                           #index of request1
+                        req2Index = route2.getReqIndex(j)                                           #index of request2
+                        (removed, dist1, load1) = route1.removeAt(routeType='truck',i=req1Index)    #remove request1 from route1
+                        (valid, dist2, load2) = route2.add(req1,routeType='truck',i=req2Index)      #add request1 to route2
 
-                    Route.Lock = False
-                    costImprovement = 0
-                    if len(route1.seq) == 1:                                                    #if length of route1 is 1, removing a request would result in using one truck less
-                        costImprovement += TruckDayCost
-                    if valid:
-                        currentDist = dist1 + dist2                                             #sum of two new routes
-                    else:
-                        costImprovement -= TruckDayCost                                         #otherwise a new route has to be created for request1
-                        newRoute = Route('truck')
-                        newRoute.add(req1,'truck')
-                        newRoute.day = route2.day
-                        currentDist = dist1 + newRoute.dist + route2.dist
-
-                    costImprovement += (previousDist - currentDist)
-
-                    if costImprovement > 0:                                                     #adapt routes when cost improvement is positive
+                    
+                        costImprovement = 0
                         if valid:
-                            route1.removeAt(routeType='truck', i=req1Index)
-                            route2.add(req1, routeType='truck', i=req2Index)
-                            requests[i][1] = route2
+                            currentDist = dist1 + dist2                                             #sum of two new routes
                         else:
-                            route1.removeAt(routeType='truck', i=req1Index)
-                            requests[i][1] = newRoute
+                            # costImprovement -= TruckDayCost                                         #otherwise a new route has to be created for request1
+                            newRoute = Route('truck')
+                            (nvalid, ndist, nload)=newRoute.add(req1,'truck')
+                            newRoute.day = route2.day
+                            currentDist = dist1 + ndist + route2.dist
+
+                        costImprovement += (previousDist - currentDist)
+                        if(COST_IMP<costImprovement):
+                            COST_IMP=costImprovement
+                            I=i
+                            J=j
+                            VALID=valid
+                            # print(COST_IMP)
+        Route.Lock = False
+        if COST_IMP > 0:                                                     #adapt routes when cost improvement is positive
+            route1 = REQUESTS[I][1]
+            route2 = REQUESTS[J][1]
+            req1 = REQUESTS[I][0]
+            req1Index = route1.getReqIndex(I)                                          
+            req2Index = route2.getReqIndex(J) 
+
+            if VALID:
+                route1.removeAt(routeType='truck', i=req1Index)
+                route2.add(req1, routeType='truck', i=req2Index)
+                REQUESTS[I][1] = route2
+            else:
+                route1.removeAt(routeType='truck', i=req1Index)
+                newRoute = Route('truck')
+                newRoute.add(req1,'truck')
+                newRoute.day = route2.day
+                REQUESTS[I][1] = newRoute
+        else:
+            print("stopped because of no improvements")
+            return REQUESTS
+
+        print(COST_IMP)
+
+    return REQUESTS
 
 def getMainList(routes):
     mainList = [[] for i in range(Days+1)]
@@ -808,36 +834,42 @@ def backToMainList(reqDict):
     return mainList
 
 ############OPERATIONS FROM HERE############:
-t = time.time()
+
 
 MERGE_ROUTES=False
 
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
-#truckRoutes = combQuickSavings(iterations=100)
-truckRoutes=QuickRouteAlgorithm(100,2)
-#truckRoutes=savingsAlgorithm(timeWindow=True)
 
+#---------------TRUCKS--------------
+# truckRoutes = combQuickSavings(iterations=100)
+truckRoutes=QuickRouteAlgorithm(100,1)
+# truckRoutes=savingsAlgorithm(timeWindow=True)
+
+#----------------ROUTE OPTIMIZER--------------
 firstList = getMainList(truckRoutes)
 reqRouteDict = getReqRouteDict(firstList)
 
-for i in range(100):
-    improveTruckSolution(reqRouteDict)
+reqRouteDict=improveTruckSolution(reqRouteDict,200)
 
 mainList = backToMainList(reqRouteDict)
 requestDict = transformReqToTime(reqRouteDict)
 
-#request2Dict = getReqDict(mainList)
-techRoutes = techniciansSchedule(requestDict)
+
+#---------------TECHNICIANS-----------------
+request2Dict = getReqDict(mainList)
+
+# t = time.time()
+techRoutes = techniciansSchedule(request2Dict)
+# elapsed = time.time() - t
 
 printSolution()
-elapsed = time.time() - t
-print("SECONDS:",elapsed, '\n')
+# print("SECONDS:",elapsed, '\n')
 
-#run the solutionfile to get solutioncost:
+# #run the solutionfile to get solutioncost:
 var = os.system('python3 SolutionVerolog2019.py ' + '-s ' +"SOLUTION_"+str(File[-5:-4])+".txt " + '-i ' + File)
-print(var)
+
 
 
 
