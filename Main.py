@@ -487,6 +487,7 @@ def savingsAlgorithm(timeWindow=False,randomRequests=None,technician=None,closes
     return(totalRoutes)
 
 def techniciansSchedule(requestDict):
+    print(Days)
     # Initial algorithm to create a schedule for the technicians, input is a list of available requests for each day
     availableTech = Technicians
     nonAvailableTech = []
@@ -494,79 +495,75 @@ def techniciansSchedule(requestDict):
     currentRequests = []
     Route.Lock = False
 
-    i = 1
+    i = 2
     stillRequests = True
     
     while stillRequests:
-        print("nonavailable", len(nonAvailableTech))
-        print("available", len(availableTech))
+        if i > Days:
+            i=2
         if i in requestDict:
             dayRequests=requestDict[i]
             for request in dayRequests:
                 currentRequests.append(request)
 
-        currAvailableTech = [t for t in availableTech]
-        dailyRouteList = []
-
-        if currAvailableTech != None and currentRequests != None:
-            while len(currAvailableTech) > 0 and len(currentRequests) > 0:
-                techList = []
-                for j in range(len(currAvailableTech)):
-                    technician = currAvailableTech[j]
-                    closestReq = computeClosestReq(technician,currentRequests)
-
-
-                    if len(closestReq) > 0:
-                        avgDistance = computeAVG(column(closestReq,1))
-                        cost = (1 - technician.usedBefore) * TechnicianCost + (
-                                    1 - technician.usedThisDay) * TechnicianDayCost +avgDistance*TechnicianDistanceCost
-                        techList.append((technician, column(closestReq, 0), cost))
-
-                if len(techList) > 0:
-                    optimalTech = min(techList,key=lambda x:x[2])
-                    routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
-
-                    technician = optimalTech[0]
-                    if routes != None and len(routes[0].seq) !=0:
-                        finalRoute = getLargestRoute(routes)
-                        finalRoute.day = i
-
-                        for k in range(len(finalRoute.seq)):
-                            currentRequests.remove(finalRoute.seq[k])
-
-                        dailyRouteList.append((technician.ID,finalRoute))  #append tech ID and daily routes to list
-                        technician.usedBefore=True
-
-                    if technician.stillAvailable():
-                        technician.prevWorkDays += 1
-                    else:
-                        technician.breakDaysLeft = 3
-                        technician.prevWorkDays = 0
-                        availableTech.remove(technician)
-                        nonAvailableTech.append(technician)
-
-                currAvailableTech.remove(technician)
-
-        for t in nonAvailableTech:
-            t.breakDaysLeft -= 1
-
-            if t.availableAgain():
-                availableTech.append(t)
-                nonAvailableTech.remove(t)
-
-        finalRouteList.append(dailyRouteList)
+            currAvailableTech = [t for t in availableTech]
+            dailyRouteList = []
+            print(i," - nonavailable:", len(nonAvailableTech), "\t available:", len(availableTech))
+            if currAvailableTech != None and currentRequests != None:
+                while len(currAvailableTech) > 0 and len(currentRequests) > 0:
+                    techList = []
+                    for j in range(len(currAvailableTech)):
+                        technician = currAvailableTech[j]
+                        closestReq = computeClosestReq(technician,currentRequests)
 
 
-        #print(currentRequests)
-        #print(i)
+                        if len(closestReq) > 0:
+                            avgDistance = computeAVG(column(closestReq,1))
+                            cost = (1 - technician.usedBefore) * TechnicianCost + (
+                                        1 - technician.usedThisDay) * TechnicianDayCost +avgDistance*TechnicianDistanceCost
+                            techList.append((technician, column(closestReq, 0), cost))
 
-        if len(currentRequests) == 0 and i > (Days + 1):
-            stillRequests = False
-        i += 1
+                    if len(techList) > 0:
+                        optimalTech = min(techList,key=lambda x:x[2])
+                        routes = savingsAlgorithm(technician=optimalTech[0],closestReq=optimalTech[1],routeType='technician')
 
-        print("nonavailable", len(nonAvailableTech))
-        print("available", len(availableTech))
-        print("\n")
+                        technician = optimalTech[0]
+                        if routes != None and len(routes[0].seq) !=0:
+                            finalRoute = getLargestRoute(routes)
+                            finalRoute.day = i
+
+                            for k in range(len(finalRoute.seq)):
+                                currentRequests.remove(finalRoute.seq[k])
+
+                            dailyRouteList.append((technician.ID,finalRoute))  #append tech ID and daily routes to list
+                            technician.usedBefore=True
+
+                        if technician.stillAvailable():
+                            technician.prevWorkDays += 1
+                        else:
+                            technician.breakDaysLeft = 3
+                            technician.prevWorkDays = 0
+                            availableTech.remove(technician)
+                            nonAvailableTech.append(technician)
+
+                    currAvailableTech.remove(technician)
+
+            for t in nonAvailableTech:
+                t.breakDaysLeft -= 1
+
+                if t.availableAgain():
+                    availableTech.append(t)
+                    nonAvailableTech.remove(t)
+
+            finalRouteList.append(dailyRouteList)
+            
+            print(i," - nonavailable:", len(nonAvailableTech), "\t available:", len(availableTech))
+            print("\n")
+            if len(currentRequests) == 0 and i > (Days + 1):
+                stillRequests = False
+            i += 1
+        else:
+            i+=1
 
     return finalRouteList
 
