@@ -13,7 +13,7 @@ import subprocess
 
 random.seed(2018)
 
-File= "Instances/CO2018_7.txt"
+File= "Instances/CO2018_1.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -121,7 +121,6 @@ class Route(object):
             dist = None
             nrMachines = None
             seq = None
-
             if routeType == 'truck':
                 removed = self.seq[i]
                 cancelledLoad = removed.totalSize
@@ -130,11 +129,21 @@ class Route(object):
                 nrMachines = self.nrMachines - 1
 
             if (len(self.seq) == 1):
-                seq = []
-                if routeType == 'truck':
-                    return (removed, 0, load)
-                elif routeType == 'technician':
-                    return (removed, 0, nrMachines)
+                if Route.Lock == True:
+                    seq = []
+                    if routeType == 'truck':
+                        return (removed, 0, load)
+                    elif routeType == 'technician':
+                        return (removed, 0, nrMachines)
+                else:
+                    self.seq = []
+                    self.dist = 0
+                    if routeType == 'truck':
+                        self.load = 0
+                        return (removed, 0, self.load)
+                    elif routeType == 'technician':
+                        self.nrMachines = 0
+                        return (removed, 0, self.nrMachines)
 
             if (i == len(self.seq) - 1):
                 a = self.seq[i - 1].customerLocID
@@ -485,8 +494,12 @@ def techniciansSchedule(requestDict):
     currentRequests = []
     Route.Lock = False
 
-    for i in range(1,Days+1):
-
+    i = 1
+    stillRequests = True
+    
+    while stillRequests:
+        print("nonavailable", len(nonAvailableTech))
+        print("available", len(availableTech))
         if i in requestDict:
             dayRequests=requestDict[i]
             for request in dayRequests:
@@ -521,7 +534,7 @@ def techniciansSchedule(requestDict):
                         for k in range(len(finalRoute.seq)):
                             currentRequests.remove(finalRoute.seq[k])
 
-                        dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
+                        dailyRouteList.append((technician.ID,finalRoute))  #append tech ID and daily routes to list
                         technician.usedBefore=True
 
                     if technician.stillAvailable():
@@ -531,6 +544,7 @@ def techniciansSchedule(requestDict):
                         technician.prevWorkDays = 0
                         availableTech.remove(technician)
                         nonAvailableTech.append(technician)
+
                 currAvailableTech.remove(technician)
 
         for t in nonAvailableTech:
@@ -541,6 +555,18 @@ def techniciansSchedule(requestDict):
                 nonAvailableTech.remove(t)
 
         finalRouteList.append(dailyRouteList)
+
+
+        #print(currentRequests)
+        #print(i)
+
+        if len(currentRequests) == 0 and i > (Days + 1):
+            stillRequests = False
+        i += 1
+
+        print("nonavailable", len(nonAvailableTech))
+        print("available", len(availableTech))
+        print("\n")
 
     return finalRouteList
 
@@ -710,75 +736,154 @@ def combQuickSavings(iterations=1):
 
     return (optRoutes)
 
-def improveTruckSolution(requests,iterations):
-    REQUESTS=requests
-    for iteration in range(iterations):
+def improveTruckSolution(truckRouteList,techRouteList,iterations):
+    numOfTrucks = calcTrucksPerDay(truckRouteList)
+    numOfTechs = calcTechsPerDay(techRouteList)
 
+    totTruckDist = calcTotTruckDist(truckRouteList)
+    totTechDist = calcTotTechDist(techRouteList)
+
+    #currTruckCosts = totalTruckDist * TruckDistanceCost + sum(numOfTrucks) * TruckDayCost + max(numOfTrucks) * TruckCost
+    prevTechCosts = totTechDist * TechnicianDistanceCost + sum(numOfTechs) * TechnicianDayCost + max(numOfTechs) * TechnicianCost
+
+    #REQUESTS=getReqRouteDict(truckRouteList)
+    for iteration in range(iterations):
+        print(iteration)
         COST_IMP=-1000000000
-        I=None
-        J=None
+        finalRoute1=None
+        finalRoute2=None
+        finalRequest1=None
+        finalRequest2=None
+        finalTechRouteList = techRouteList
         VALID=None
 
         Route.Lock = True
-        for i in range(1,len(REQUESTS)+1):
-            for j in range(1,len(REQUESTS)+1):
-                if i != j:
-                    route1 = REQUESTS[i][1]
-                    route2 = REQUESTS[j][1]
+        for i in range(len(truckRouteList)):
+            for j in range(len(truckRouteList)):
+                for route1 in truckRouteList[i]:
+                    for route2 in truckRouteList[j]:
+                        if route1 != route2:
+                            for request1 in route1.seq:
+                                for request2 in route2.seq:
+                                    if request1.fromDay <= route2.day <= request1.toDay:
+                                        Route.Lock = True
+                                        #check time constraints
+                                        previousDist = getCosts([route1,route2])                                            #distance of old routes
 
-                    req1 = REQUESTS[i][0]
+                                        req1Index = route1.getReqIndex(request1.ID)                                         #index of request1
+                                        req2Index = route2.getReqIndex(request2.ID)                                         #index of request2
+                                        (removed, dist1, load1) = route1.removeAt(routeType='truck',i=req1Index)            #remove request1 from route1
+                                        (valid, dist2, load2) = route2.add(request1,routeType='truck',i=req2Index)          #add request1 to route2
 
-                    if req1.fromDay <= route2.day <= req1.toDay:                                    #check time constraints
-                        previousDist = getCosts([route1,route2])                                    #distance of old routes
+                                        costImprovement = 0
+                                        maxTruckIndex = numOfTrucks.index(max(numOfTrucks))
 
-                        req1Index = route1.getReqIndex(i)                                           #index of request1
-                        req2Index = route2.getReqIndex(j)                                           #index of request2
-                        (removed, dist1, load1) = route1.removeAt(routeType='truck',i=req1Index)    #remove request1 from route1
-                        (valid, dist2, load2) = route2.add(req1,routeType='truck',i=req2Index)      #add request1 to route2
+                                        if len(route1.seq) == 1:
+                                            costImprovement += TruckDayCost
 
-                    
-                        costImprovement = 0
-                        if valid:
-                            currentDist = dist1 + dist2                                             #sum of two new routes
-                        else:
-                            # costImprovement -= TruckDayCost                                         #otherwise a new route has to be created for request1
-                            newRoute = Route('truck')
-                            (nvalid, ndist, nload)=newRoute.add(req1,'truck')
-                            newRoute.day = route2.day
-                            currentDist = dist1 + ndist + route2.dist
+                                            if route1.day == (maxTruckIndex + 1):
+                                                costImprovement += TruckCost
 
-                        costImprovement += (previousDist - currentDist)
-                        if(COST_IMP<costImprovement):
-                            COST_IMP=costImprovement
-                            I=i
-                            J=j
-                            VALID=valid
-                            # print(COST_IMP)
+                                        if valid:
+                                            currentDist = dist1 + dist2                                             #sum of two new routes
+                                        else:
+                                            costImprovement -= TruckDayCost                                         #otherwise a new route has to be created for request1
+                                            newRoute = Route('truck')
+                                            (nvalid, ndist, nload)=newRoute.add(request1,'truck')
+                                            newRoute.day = route2.day
+                                            currentDist = dist1 + ndist + route2.dist
+
+                                            if route1.day == (maxTruckIndex + 1):
+                                                costImprovement -= TruckCost
+
+                                        costImprovement += (previousDist - currentDist)
+
+                                        if route1.day != route2.day:
+                                            requestDict = getReqDict(truckRouteList)
+                                            r1List = requestDict[route1.day + 1]
+                                            r1List.remove(request1)
+                                            requestDict[route1.day + 1] = r1List
+
+                                            r2List = requestDict[route2.day + 1]
+                                            r2List.append(request1)
+                                            requestDict[route2.day + 1] = r2List
+
+                                            newTechRouteList = techniciansSchedule(requestDict)
+
+                                            newTechDist = calcTotTechDist(newTechRouteList)
+                                            newNumOfTechs = calcTechsPerDay(newTechRouteList)
+                                            currTechCosts = newTechDist * TechnicianDistanceCost + sum(newNumOfTechs) * TechnicianDayCost + max(newNumOfTechs) * TechnicianCost
+
+                                            costImprovement += (prevTechCosts - currTechCosts)
+                                        else:
+                                            newTechRouteList = techRouteList
+
+                                        if(COST_IMP<costImprovement):
+                                            COST_IMP=costImprovement
+                                            finalRoute1 = route1
+                                            finalRoute2 = route2
+                                            finalRequest1 = request1
+                                            finalRequest2 = request2
+                                            finalTechRouteList = newTechRouteList
+                                            VALID=valid
+
         Route.Lock = False
         if COST_IMP > 0:                                                     #adapt routes when cost improvement is positive
-            route1 = REQUESTS[I][1]
-            route2 = REQUESTS[J][1]
-            req1 = REQUESTS[I][0]
-            req1Index = route1.getReqIndex(I)                                          
-            req2Index = route2.getReqIndex(J) 
+            req1Index = finalRoute1.getReqIndex(finalRequest1.ID)
+            req2Index = finalRoute2.getReqIndex(finalRequest2.ID)
 
+            truckRouteList[finalRoute1.day].remove(finalRoute1)
+            truckRouteList[finalRoute2.day].remove(finalRoute2)
+
+            techRouteList = finalTechRouteList
             if VALID:
-                route1.removeAt(routeType='truck', i=req1Index)
-                route2.add(req1, routeType='truck', i=req2Index)
-                REQUESTS[I][1] = route2
+                finalRoute1.removeAt(routeType='truck', i=req1Index)
+                finalRoute2.add(finalRequest1, routeType='truck', i=req2Index)
+                if finalRoute1.seq != []:
+                    truckRouteList[finalRoute1.day].append(finalRoute1)
+                truckRouteList[finalRoute2.day].append(finalRoute2)
             else:
-                route1.removeAt(routeType='truck', i=req1Index)
+                finalRoute1.removeAt(routeType='truck', i=req1Index)
                 newRoute = Route('truck')
-                newRoute.add(req1,'truck')
-                newRoute.day = route2.day
-                REQUESTS[I][1] = newRoute
+                newRoute.add(finalRequest1,'truck')
+                newRoute.day = finalRoute2.day
+
+                if finalRoute1.seq != []:
+                    truckRouteList[finalRoute1.day].append(finalRoute1)
+                truckRouteList[newRoute.day].append(newRoute)
         else:
             print("stopped because of no improvements")
-            return REQUESTS
+            return (truckRouteList,techRouteList)
 
-        print(COST_IMP)
+        #print(COST_IMP)
+    return (truckRouteList,techRouteList)
 
-    return REQUESTS
+def calcTrucksPerDay(truckList):
+    numOfTrucks = []
+    for i in range(len(truckList)):
+        numOfTrucks.append(len(truckList[i]))
+    return (numOfTrucks)
+
+def calcTechsPerDay(techList):
+    numOfTechs = []
+    for i in range(len(techList)):
+        numOfTechs.append(len(techList[i]))
+    return (numOfTechs)
+
+def calcTotTruckDist(truckList):
+    totalTruckDist = 0
+    for routes in truckList:
+        totalTruckDist += getCosts(routes)
+    return (totalTruckDist)
+
+def calcTotTechDist(techList):
+    totalTechDist = 0
+    techRoutes = []
+    for routes in techList:
+        for route in routes:
+            techRoutes.append(route[1])
+    totalTechDist += getCosts(techRoutes)
+    return (totalTechDist)
 
 def getMainList(routes):
     mainList = [[] for i in range(Days+1)]
@@ -844,24 +949,39 @@ Distances= getDistMatrix() #Builds distance matrix
 
 #---------------TRUCKS--------------
 # truckRoutes = combQuickSavings(iterations=100)
-truckRoutes=QuickRouteAlgorithm(100,1)
-# truckRoutes=savingsAlgorithm(timeWindow=True)
+truckRoutes=QuickRouteAlgorithm(100,2)
+#truckRoutes=savingsAlgorithm(timeWindow=True)
 
 #----------------ROUTE OPTIMIZER--------------
-firstList = getMainList(truckRoutes)
-reqRouteDict = getReqRouteDict(firstList)
+truckRouteList = getMainList(truckRoutes)
 
-reqRouteDict=improveTruckSolution(reqRouteDict,200)
+'''
+for day in truckRouteList:
+    for route in day:
+        print("day", route.day)
+        route.printSeq()
+'''
 
-mainList = backToMainList(reqRouteDict)
-requestDict = transformReqToTime(reqRouteDict)
+reqRouteDict = getReqRouteDict(truckRouteList)
+
+requestDict = getReqDict(truckRouteList)
+techRouteList = techniciansSchedule(requestDict)
+
+(mainList,techRoutes) = improveTruckSolution(truckRouteList,techRouteList,1)
+#reqRouteDict=improveTruckSolution(reqRouteDict,200)
+
+#mainList = backToMainList(reqRouteDict)
+
+
+#requestDict = transformReqToTime(reqRouteDict)
 
 
 #---------------TECHNICIANS-----------------
-request2Dict = getReqDict(mainList)
 
 # t = time.time()
-techRoutes = techniciansSchedule(request2Dict)
+
+
+#print(techRoutes)
 # elapsed = time.time() - t
 
 printSolution()
