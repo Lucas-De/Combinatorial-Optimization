@@ -724,12 +724,13 @@ def combQuickSavings(iterations=1):
 def improveTruckSolution(truckRouteList,techRouteList,iterations):
     numOfTrucks = calcTrucksPerDay(truckRouteList)
     numOfTechs = calcTechsPerDay(techRouteList)
+    numOfIndividualTechs = calcIndividualTechsUsed(techRouteList)
 
-    totTruckDist = calcTotTruckDist(truckRouteList)
+    #totTruckDist = calcTotTruckDist(truckRouteList)
     totTechDist = calcTotTechDist(techRouteList)
 
-    #currTruckCosts = totalTruckDist * TruckDistanceCost + sum(numOfTrucks) * TruckDayCost + max(numOfTrucks) * TruckCost
-    prevTechCosts = totTechDist * TechnicianDistanceCost + sum(numOfTechs) * TechnicianDayCost + max(numOfTechs) * TechnicianCost           
+    #currTruckCosts = totTruckDist * TruckDistanceCost + sum(numOfTrucks) * TruckDayCost + max(numOfTrucks) * TruckCost
+    prevTechCosts = totTechDist * TechnicianDistanceCost + sum(numOfTechs) * TechnicianDayCost + numOfIndividualTechs * TechnicianCost
 
     #REQUESTS=getReqRouteDict(truckRouteList)
     for iteration in range(iterations):
@@ -874,6 +875,14 @@ def calcTechsPerDay(techList):
     for i in range(len(techList)):
         numOfTechs.append(len(techList[i]))
     return (numOfTechs)
+
+def calcIndividualTechsUsed(techList):
+    numIndividualTechs = 0
+    for technician in techList:
+        if technician.usedBefore:
+            numIndividualTechs += 1
+
+    return numIndividualTechs
 
 def calcTotTruckDist(truckList):
     totalTruckDist = 0
