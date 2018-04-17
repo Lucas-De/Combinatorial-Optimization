@@ -406,7 +406,7 @@ def initRoutes(technician=None,closestReq=None,routeType='truck',avRequests=None
             routes.append(r)
     return (routes)
 
-def getCosts(RouteList):
+def getDistanceOfRoute(RouteList):
     cost=0
     for i in RouteList:
         cost+=i.dist
@@ -690,7 +690,7 @@ def QuickRouteAlgorithm(iterations=1,method=2):
     for i in range(iterations):
         #print(i)
         routes=QuickRoute(method)
-        cost=getCosts(routes)
+        cost=getDistanceOfRoute(routes)
         if(cost<optCost):
             optCost=cost
             optRoutes=routes
@@ -714,7 +714,7 @@ def combQuickSavings(iterations=1):
                 route.day = i
                 totRoutes.append(route)
             i += 1
-        cost = getCosts(totRoutes)
+        cost = getDistanceOfRoute(totRoutes)
         if (cost < optCost):
             optCost = cost
             optRoutes = totRoutes
@@ -762,7 +762,7 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations):
                                         #iter += 1
                                         Route.Lock = True
                                         #check time constraints
-                                        previousDist = getCosts([route1,route2])                                            #distance of old routes
+                                        previousDist = getDistanceOfRoute([route1, route2])                                            #distance of old routes
 
                                         req1Index = route1.getReqIndex(request1.ID)                                         #index of request1
                                         req2Index = route2.getReqIndex(request2.ID)                                         #index of request2
@@ -878,7 +878,7 @@ def calcTechsPerDay(techList):
 def calcTotTruckDist(truckList):
     totalTruckDist = 0
     for routes in truckList:
-        totalTruckDist += getCosts(routes)
+        totalTruckDist += getDistanceOfRoute(routes)
     return (totalTruckDist)
 
 def calcTotTechDist(techList):
@@ -887,7 +887,7 @@ def calcTotTechDist(techList):
     for routes in techList:
         for route in routes:
             techRoutes.append(route[1])
-    totalTechDist += getCosts(techRoutes)
+    totalTechDist += getDistanceOfRoute(techRoutes)
     return (totalTechDist)
 
 def getMainList(routes):
@@ -954,7 +954,7 @@ Distances= getDistMatrix() #Builds distance matrix
 
 #---------------TRUCKS--------------
 # truckRoutes = combQuickSavings(iterations=100)
-truckRoutes=QuickRouteAlgorithm(100,2)
+truckRoutes=QuickRouteAlgorithm(1,2)
 #truckRoutes=savingsAlgorithm(timeWindow=True)
 
 #----------------ROUTE OPTIMIZER--------------
