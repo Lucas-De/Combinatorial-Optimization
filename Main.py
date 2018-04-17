@@ -35,7 +35,6 @@ Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
 def printSolution():
-
     f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
     f.write("DATASET = CO2018 freestyle \n")
     f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
@@ -93,9 +92,6 @@ def get_size_per_request():
     for i in range(0,len(Requests)):
         totalSize= Requests[i].amount * Machines[Requests[i].machineID-1].size
         Requests[i].totalSize=totalSize
-        delaypenal= Requests[i].amount * Machines[Requests[i].machineID-1].idlePenalty
-        Requests[i].delayPenalty = delaypenal
-
 
 def getDistMatrix():
     nrLoc=len(Locations)
@@ -555,6 +551,10 @@ def techniciansSchedule(requestDict):
                 availableTech.append(t)
                 nonAvailableTech.remove(t)
 
+        print("Technicians on day %d are" % i)
+        for route in dailyRouteList:
+            route[0]
+
         finalRouteList.append(dailyRouteList)
 
     return finalRouteList
@@ -727,9 +727,13 @@ def combQuickSavings(iterations=1):
 
 def improveTruckSolution(truckRouteList,techRouteList,iterations):
     numOfTrucks = calcTrucksPerDay(truckRouteList)
+    numOfTechs = calcTechsPerDay(techRouteList)
 
-    #currTruckCosts = calcTruckCost(truckRouteList)
-    prevTechCosts = calcTechCost(techRouteList)
+    totTruckDist = calcTotTruckDist(truckRouteList)
+    totTechDist = calcTotTechDist(techRouteList)
+
+    #currTruckCosts = totalTruckDist * TruckDistanceCost + sum(numOfTrucks) * TruckDayCost + max(numOfTrucks) * TruckCost
+    prevTechCosts = totTechDist * TechnicianDistanceCost + sum(numOfTechs) * TechnicianDayCost + max(numOfTechs) * TechnicianCost           
 
     #REQUESTS=getReqRouteDict(truckRouteList)
     for iteration in range(iterations):
@@ -863,38 +867,6 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations):
         print(COST_IMP)
     return (truckRouteList,techRouteList)
 
-def calcTechCost(techList):
-
-    return calcTotTechDist(techList) * TechnicianDistanceCost + sum(calcTechsPerDay(techList)) * TechnicianDayCost + calcIndividualTechsUsed(techList) * TechnicianCost
-
-def calcTruckCost(truckList):
-
-    return calcTrucksPerDay(truckList) * TruckDistanceCost + sum(calcTrucksPerDay(truckList)) * TruckDayCost + max(calcTrucksPerDay(truckList)) * TruckCost
-
-def calcDelayCost(truckList, techSchedule):
-    delayCost = 0
-    for day in truckList:
-        for route in day:
-            for request in route:
-                installDay= getInstallationDay(request, techSchedule)
-                delayCost+= (day-installDay-1)*request.delayPenalty
-
-    return delayCost
-
-def calcTotalCost(truckList, techSchedule):
-
-    return calcTechCost(techSchedule) + calcTruckCost(truckList) + calcDelayCost(truckList, techSchedule)
-
-def getInstallationDay(request, techSchedule):
-
-    for day in techSchedule:
-        for e in day:
-            route=e[1].seq
-            if request.ID in route.seq:
-                return day
-    print('ERROR in installation day')
-    return 0
-
 def calcTrucksPerDay(truckList):
     numOfTrucks = []
     for i in range(len(truckList)):
@@ -906,14 +878,6 @@ def calcTechsPerDay(techList):
     for i in range(len(techList)):
         numOfTechs.append(len(techList[i]))
     return (numOfTechs)
-
-
-def calcIndividualTechsUsed(techList):
-    techSet = set()
-    for day in techList:
-        for e in day:
-            techSet.add(e[0])
-    return len(techSet)
 
 def calcTotTruckDist(truckList):
     totalTruckDist = 0
@@ -1012,7 +976,7 @@ for day in truckRouteList:
 requestDict = getReqDict(truckRouteList)
 techRouteList = techniciansSchedule(requestDict)
 
-(mainList,techRoutes) = improveTruckSolution(truckRouteList,techRouteList,1)
+#(mainList,techRoutes) = improveTruckSolution(truckRouteList,techRouteList,50)
 
 '''
 for day in techRoutes:
@@ -1020,12 +984,12 @@ for day in techRoutes:
         print(route[1].day)
         route[1].printSeq()
 '''
-#reqRouteDict=improveTruckSolution(reqRouteDict,200)
+#reqRouteDict=improveTruckSolution(requestDict,iterations=200)
 
-#mainList = backToMainList(reqRouteDict)
+mainList = backToMainList(requestDict)
 
 
-#requestDict = transformReqToTime(reqRouteDict)
+#requestDict = transformReqToTime(requestDict)
 
 
 #---------------TECHNICIANS-----------------
