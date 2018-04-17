@@ -35,6 +35,7 @@ Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
 def printSolution():
+
     f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
     f.write("DATASET = CO2018 freestyle \n")
     f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
@@ -92,6 +93,9 @@ def get_size_per_request():
     for i in range(0,len(Requests)):
         totalSize= Requests[i].amount * Machines[Requests[i].machineID-1].size
         Requests[i].totalSize=totalSize
+        delaypenal= Requests[i].amount * Machines[Requests[i].machineID-1].idlePenalty
+        Requests[i].delayPenalty = delaypenal
+
 
 def getDistMatrix():
     nrLoc=len(Locations)
@@ -867,6 +871,30 @@ def calcTruckCost(truckList):
 
     return calcTrucksPerDay(truckList) * TruckDistanceCost + sum(calcTrucksPerDay(truckList)) * TruckDayCost + max(calcTrucksPerDay(truckList)) * TruckCost
 
+def calcDelayCost(truckList, techSchedule):
+    delayCost = 0
+    for day in truckList:
+        for route in day:
+            for request in route:
+                installDay= getInstallationDay(request, techSchedule)
+                delayCost+= (day-installDay-1)*request.delayPenalty
+
+    return delayCost
+
+def calcTotalCost(truckList, techSchedule):
+
+    return calcTechCost(techSchedule) + calcTruckCost(truckList) + calcDelayCost(truckList, techSchedule)
+
+def getInstallationDay(request, techSchedule):
+
+    for day in techSchedule:
+        for e in day:
+            route=e[1].seq
+            if request.ID in route.seq:
+                return day
+    print('ERROR in installation day')
+    return 0
+
 def calcTrucksPerDay(truckList):
     numOfTrucks = []
     for i in range(len(truckList)):
@@ -879,13 +907,13 @@ def calcTechsPerDay(techList):
         numOfTechs.append(len(techList[i]))
     return (numOfTechs)
 
-def calcIndividualTechsUsed(techList):
-    numIndividualTechs = 0
-    for technician in techList:
-        if technician.usedBefore:
-            numIndividualTechs += 1
 
-    return numIndividualTechs
+def calcIndividualTechsUsed(techList):
+    techSet = set()
+    for day in techList:
+        for e in day:
+            techSet.add(e[0])
+    return len(techSet)
 
 def calcTotTruckDist(truckList):
     totalTruckDist = 0
@@ -984,7 +1012,7 @@ for day in truckRouteList:
 requestDict = getReqDict(truckRouteList)
 techRouteList = techniciansSchedule(requestDict)
 
-(mainList,techRoutes) = improveTruckSolution(truckRouteList,techRouteList,50)
+(mainList,techRoutes) = improveTruckSolution(truckRouteList,techRouteList,1)
 
 '''
 for day in techRoutes:
