@@ -13,7 +13,7 @@ import subprocess
 
 random.seed(2018)
 
-File= "Instances/STUDENT010.txt"
+File= "Instances/STUDENT002.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -35,6 +35,9 @@ Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
 def printSolution():
+
+   # print(calcTotalCost(mainList, techRoutes))
+
     f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
     f.write("DATASET = CO2018 freestyle \n")
     f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
@@ -900,15 +903,25 @@ def calcTechCost(techList):
 
 def calcTruckCost(truckList):
 
-    return calcTrucksPerDay(truckList) * TruckDistanceCost + sum(calcTrucksPerDay(truckList)) * TruckDayCost + max(calcTrucksPerDay(truckList)) * TruckCost
+    return calcTotalDistanceTrucks(truckList) * TruckDistanceCost + sum(calcTrucksPerDay(truckList)) * TruckDayCost + max(calcTrucksPerDay(truckList)) * TruckCost
+
+def calcTotalDistanceTrucks(truckList):
+
+    distance = 0
+
+    for day in truckList:
+        for route in day:
+            distance += route.dist
+
+    return distance
 
 def calcDelayCost(truckList, techSchedule):
+
     delayCost = 0
     for day in truckList:
         for route in day:
-            for request in route:
-                installDay= getInstallationDay(request, techSchedule)
-                delayCost+= (day-installDay-1)*request.delayPenalty
+            installDay = route.day
+            delayCost+= (day-installDay-1)
 
     return delayCost
 
@@ -937,7 +950,6 @@ def calcTechsPerDay(techList):
     for i in range(len(techList)):
         numOfTechs.append(len(techList[i]))
     return (numOfTechs)
-
 
 def calcIndividualTechsUsed(techList):
     techSet = set()
@@ -1066,6 +1078,8 @@ for day in techRoutes:
 
 #print(techRoutes)
 # elapsed = time.time() - t
+
+print(calcTotalDistanceTrucks(mainList))
 
 printSolution()
 # print("SECONDS:",elapsed, '\n')
