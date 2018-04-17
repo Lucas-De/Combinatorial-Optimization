@@ -92,6 +92,9 @@ def get_size_per_request():
     for i in range(0,len(Requests)):
         totalSize= Requests[i].amount * Machines[Requests[i].machineID-1].size
         Requests[i].totalSize=totalSize
+        delaypenal= Requests[i].amount * Machines[Requests[i].machineID-1].idlePenalty
+        Requests[i].delayPenalty = delaypenal
+
 
 def getDistMatrix():
     nrLoc=len(Locations)
@@ -722,11 +725,17 @@ def combQuickSavings(iterations=1):
     return (optRoutes)
 
 def improveTruckSolution(truckRouteList,techRouteList,iterations):
+    numOfTrucks = calcTrucksPerDay(truckRouteList)
     for iteration in range(iterations):
         numOfTrucks = calcTrucksPerDay(truckRouteList)
         print("list", numOfTrucks)
         numOfTechs = calcTechsPerDay(techRouteList)
 
+    #currTruckCosts = calcTruckCost(truckRouteList)
+    prevTechCosts = calcTechCost(techRouteList)
+
+    #REQUESTS=getReqRouteDict(truckRouteList)
+    for iteration in range(iterations):
         totTruckDist = calcTotTruckDist(truckRouteList)
         totTechDist = calcTotTechDist(techRouteList)
 
@@ -882,6 +891,38 @@ def multipleMax(numberList):
         return False
 
 
+def calcTechCost(techList):
+
+    return calcTotTechDist(techList) * TechnicianDistanceCost + sum(calcTechsPerDay(techList)) * TechnicianDayCost + calcIndividualTechsUsed(techList) * TechnicianCost
+
+def calcTruckCost(truckList):
+
+    return calcTrucksPerDay(truckList) * TruckDistanceCost + sum(calcTrucksPerDay(truckList)) * TruckDayCost + max(calcTrucksPerDay(truckList)) * TruckCost
+
+def calcDelayCost(truckList, techSchedule):
+    delayCost = 0
+    for day in truckList:
+        for route in day:
+            for request in route:
+                installDay= getInstallationDay(request, techSchedule)
+                delayCost+= (day-installDay-1)*request.delayPenalty
+
+    return delayCost
+
+def calcTotalCost(truckList, techSchedule):
+
+    return calcTechCost(techSchedule) + calcTruckCost(truckList) + calcDelayCost(truckList, techSchedule)
+
+def getInstallationDay(request, techSchedule):
+
+    for day in techSchedule:
+        for e in day:
+            route=e[1].seq
+            if request.ID in route.seq:
+                return day
+    print('ERROR in installation day')
+    return 0
+
 def calcTrucksPerDay(truckList):
     numOfTrucks = []
     for i in range(len(truckList)):
@@ -893,6 +934,14 @@ def calcTechsPerDay(techList):
     for i in range(len(techList)):
         numOfTechs.append(len(techList[i]))
     return (numOfTechs)
+
+
+def calcIndividualTechsUsed(techList):
+    techSet = set()
+    for day in techList:
+        for e in day:
+            techSet.add(e[0])
+    return len(techSet)
 
 def calcTotTruckDist(truckList):
     totalTruckDist = 0
@@ -977,7 +1026,7 @@ truckRoutes=QuickRouteAlgorithm(1,2)
 #truckRoutes=savingsAlgorithm(timeWindow=True)
 
 #----------------ROUTE OPTIMIZER--------------
-mainList = getMainList(truckRoutes)
+truckRouteList = getMainList(truckRoutes)
 
 '''
 for day in truckRouteList:
@@ -988,12 +1037,11 @@ for day in truckRouteList:
 
 #reqRouteDict = getReqRouteDict(truckRouteList)
 
-requestDict = getReqDict(mainList)
-techRoutes = techniciansSchedule(requestDict)
+requestDict = getReqDict(truckRouteList)
+techRouteList = techniciansSchedule(requestDict)
 
-(mainList,techRoutes) = improveTruckSolution(mainList[0:3],techRoutes,20)
-(mainList,techRoutes) = improveTruckSolution(mainList[3:7],techRoutes,20)
-(mainList,techRoutes) = improveTruckSolution(mainList[7:10],techRoutes,20)
+(mainList,techRoutes) = improveTruckSolution(truckRouteList,techRouteList,50)
+
 '''
 for day in techRoutes:
     for route in day:
