@@ -859,9 +859,9 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations):
         print(COST_IMP)
     return (truckRouteList,techRouteList)
 
-def calcTechCost(techRouteList):
+def calcTechCost(techList):
 
-    return calcTotTechDist(techRouteList) * TechnicianDistanceCost + sum(calcTechsPerDay(techRouteList)) * TechnicianDayCost + calcIndividualTechsUsed(techRouteList) * TechnicianCost
+    return calcTotTechDist(techList) * TechnicianDistanceCost + sum(calcTechsPerDay(techList)) * TechnicianDayCost + calcIndividualTechsUsed(techList) * TechnicianCost
 
 def calcTruckCost(truckList):
 
