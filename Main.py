@@ -1003,13 +1003,6 @@ truckRoutes=QuickRouteAlgorithm(1000,2)
 #----------------ROUTE OPTIMIZER--------------
 mainList = getMainList(truckRoutes)
 
-'''
-for day in truckRouteList:
-    for route in day:
-        print("day", route.day)
-        route.printSeq()
-'''
-
 #reqRouteDict = getReqRouteDict(truckRouteList)
 
 requestDict = getReqDict(mainList)
