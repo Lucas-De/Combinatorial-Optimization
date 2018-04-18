@@ -1010,12 +1010,6 @@ techRoutes = techniciansSchedule(requestDict)
 
 (mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,10)
 
-'''
-for day in techRoutes:
-    for route in day:
-        print(route[1].day)
-        route[1].printSeq()
-'''
 #reqRouteDict=improveTruckSolution(reqRouteDict,200)
 
 #mainList = backToMainList(reqRouteDict)
