@@ -11,9 +11,9 @@ import os
 import subprocess
 
 
-random.seed(2018)
+random.seed(2019)
 
-File= "Instances/CO2018_1.txt"
+File= "Instances/CO2018_3.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -738,13 +738,12 @@ def combQuickSavings(iterations=1):
 
     return (optRoutes)
 
-def improveTruckSolution(truckRouteList,techRouteList,iterations):
+def improveTruckSolution(truckRouteList,techRouteList,iterations,sampleSize):
     for iteration in range(iterations):
         requests = getReqRouteDict(truckRouteList)
         numOfTrucks = calcTrucksPerDay(truckRouteList)
         prevTechCosts = calcTechCost(techRouteList)
 
-        print("iteration", iteration)
 
         COST_IMP = -1000000000
         finalRoute1=None
@@ -756,8 +755,8 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations):
 
         #create subsets based on the iterations
         stepSize = int(len(Requests)/ iterations)
-        a = iteration * stepSize + 1
-        b = (iteration + 1) * stepSize + 1
+        a = random.randint(1,len(Requests)-sampleSize-1)
+        b = a+sampleSize
         subset = list(range(a,b))
         requests = dict((i,requests[i]) for i in subset if i in requests)
 
@@ -853,12 +852,13 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations):
                 if finalRoute1.seq != []:
                     truckRouteList[finalRoute1.day].append(finalRoute1)
                 truckRouteList[newRoute.day].append(newRoute)
+            print("i: ", iteration, "\t improves: ",COST_IMP)
         else:
-            print("stopped because of no improvements")
+            print("i: ", iteration, "\t No Improvement")
             #return (truckRouteList,techRouteList)
 
-        print(COST_IMP)
-        print("\n")
+        # print(COST_IMP
+        # print("\n")
     return (truckRouteList,techRouteList)
 
 def multipleMax(numberList):
@@ -1022,8 +1022,8 @@ Distances= getDistMatrix() #Builds distance matrix
 
 #---------------TRUCKS--------------
 # truckRoutes = combQuickSavings(iterations=100)
-truckRoutes=QuickRouteAlgorithm(1000,2)
-#truckRoutes=savingsAlgorithm(timeWindow=True)
+truckRoutes=QuickRouteAlgorithm(100,1)
+# truckRoutes=savingsAlgorithm(timeWindow=True)
 #print("After first algorithm")
 #print(calcTotalDistanceTrucks(getMainList(truckRoutes)))
 
@@ -1038,7 +1038,7 @@ requestDict = getReqDict(mainList)
 RESET_WORKDAYS = True
 techRoutes = techniciansSchedule(requestDict)
 
-#(mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,10)
+(mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,iterations=100,sampleSize=10)
 
 '''
 for day in techRoutes:
