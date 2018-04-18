@@ -35,6 +35,9 @@ Locations=Instance.Locations     #Locations objects have values: ID, X, Y
 Technicians=Instance.Technicians #Technicians objects have values: ID, locationID, maxDayDistance, maxNrInstallations, capabilities]
 
 def printSolution():
+
+   # print(calcTotalCost(mainList, techRoutes))
+
     f=open("SOLUTION_"+str(File[-5:-4])+".txt", "w+")
     f.write("DATASET = CO2018 freestyle \n")
     f.write("NAME = Instance " + str(File[-5:-4]) + "\n")
@@ -162,7 +165,7 @@ class Route(object):
                 a = self.seq[i - 1].customerLocID
                 b = self.seq[i].customerLocID
                 c = self.seq[i + 1].customerLocID
-                dist = self.dist - Distances[a - 1][b - 1] - Distances[b - 1][c - 1] + Distances[a - 1][b - 1]
+                dist = self.dist - Distances[a - 1][b - 1] - Distances[b - 1][c - 1] + Distances[a - 1][c - 1]
 
             if (i == len(self.seq) - 1):
                 seq = self.seq[:i]
@@ -536,13 +539,17 @@ def techniciansSchedule(requestDict):
                             currentRequests.remove(finalRoute.seq[k])
 
                         dailyRouteList.append((technician.ID,finalRoute))  # append tech ID and daily routes to list
-                        technician.usedBefore=True
+                        technician.usedBefore = True
+                        if RESET_WORKDAYS:
+                            technician.usedThisDay = True
 
                     if technician.stillAvailable():
                         technician.prevWorkDays += 1
                     else:
                         technician.breakDaysLeft = 3
                         technician.prevWorkDays = 0
+                        if RESET_WORKDAYS:
+                            technician.usedThisDay = False
                         availableTech.remove(technician)
                         nonAvailableTech.append(technician)
                 currAvailableTech.remove(technician)
@@ -553,6 +560,13 @@ def techniciansSchedule(requestDict):
             if t.availableAgain():
                 availableTech.append(t)
                 nonAvailableTech.remove(t)
+
+        if RESET_WORKDAYS:
+            for technician in availableTech:
+                if technician.prevWorkDays > 0 and not technician.usedThisDay:
+                    technician.prevWorkDays = 0
+                if technician.usedThisDay:
+                    technician.usedThisDay = False
 
         finalRouteList.append(dailyRouteList)
 
@@ -872,15 +886,25 @@ def calcTechCost(techList):
 
 def calcTruckCost(truckList):
 
-    return calcTrucksPerDay(truckList) * TruckDistanceCost + sum(calcTrucksPerDay(truckList)) * TruckDayCost + max(calcTrucksPerDay(truckList)) * TruckCost
+    return calcTotalDistanceTrucks(truckList) * TruckDistanceCost + sum(calcTrucksPerDay(truckList)) * TruckDayCost + max(calcTrucksPerDay(truckList)) * TruckCost
+
+def calcTotalDistanceTrucks(truckList):
+
+    distance = 0
+    for day in truckList:
+        for route in day:
+            #print(route.__dict__)
+            distance += route.dist
+
+    return distance
 
 def calcDelayCost(truckList, techSchedule):
+
     delayCost = 0
     for day in truckList:
         for route in day:
-            for request in route:
-                installDay= getInstallationDay(request, techSchedule)
-                delayCost+= (day-installDay-1)*request.delayPenalty
+            installDay = route.day
+            delayCost+= (day-installDay-1)
 
     return delayCost
 
@@ -901,6 +925,7 @@ def getInstallationDay(request, techSchedule):
 def calcTrucksPerDay(truckList):
     numOfTrucks = []
     for i in range(len(truckList)):
+        #print("There are %d trucks on day %d" % (len(truckList[i]), i+1))
         numOfTrucks.append(len(truckList[i]))
     return (numOfTrucks)
 
@@ -909,7 +934,6 @@ def calcTechsPerDay(techList):
     for i in range(len(techList)):
         numOfTechs.append(len(techList[i]))
     return (numOfTechs)
-
 
 def calcIndividualTechsUsed(techList):
     techSet = set()
@@ -941,7 +965,7 @@ def getMainList(routes):
     return (mainList)
 
 #creates a dictionary with key:requestID and value:[request,route], this is used as input for the improvements algorithm
-def getReqRouteDict(mainList,iteration):
+def getReqRouteDict(mainList):
     requestDict={}
     for i in range(Days+1):
         for route in mainList[i]:
@@ -999,6 +1023,9 @@ Distances= getDistMatrix() #Builds distance matrix
 # truckRoutes = combQuickSavings(iterations=100)
 truckRoutes=QuickRouteAlgorithm(1000,2)
 #truckRoutes=savingsAlgorithm(timeWindow=True)
+#print("After first algorithm")
+#print(calcTotalDistanceTrucks(getMainList(truckRoutes)))
+
 
 #----------------ROUTE OPTIMIZER--------------
 mainList = getMainList(truckRoutes)
@@ -1008,8 +1035,17 @@ mainList = getMainList(truckRoutes)
 requestDict = getReqDict(mainList)
 techRoutes = techniciansSchedule(requestDict)
 
+RESET_WORKDAYS = True
+techRoutes = techniciansSchedule(requestDict)
+
 (mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,10)
 
+'''
+for day in techRoutes:
+    for route in day:
+        print(route[1].day)
+        route[1].printSeq()
+'''
 #reqRouteDict=improveTruckSolution(reqRouteDict,200)
 
 #mainList = backToMainList(reqRouteDict)
@@ -1025,6 +1061,8 @@ techRoutes = techniciansSchedule(requestDict)
 
 #print(techRoutes)
 # elapsed = time.time() - t
+print("Calculating Total truck distance")
+print(calcTotalDistanceTrucks(mainList))
 
 printSolution()
 # print("SECONDS:",elapsed, '\n')
