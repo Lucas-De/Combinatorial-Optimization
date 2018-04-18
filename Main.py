@@ -165,7 +165,7 @@ class Route(object):
                 a = self.seq[i - 1].customerLocID
                 b = self.seq[i].customerLocID
                 c = self.seq[i + 1].customerLocID
-                dist = self.dist - Distances[a - 1][b - 1] - Distances[b - 1][c - 1] + Distances[a - 1][b - 1]
+                dist = self.dist - Distances[a - 1][b - 1] - Distances[b - 1][c - 1] + Distances[a - 1][c - 1]
 
             if (i == len(self.seq) - 1):
                 seq = self.seq[:i]
