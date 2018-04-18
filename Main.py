@@ -740,7 +740,7 @@ def combQuickSavings(iterations=1):
 
 def improveTruckSolution(truckRouteList,techRouteList,iterations):
     for iteration in range(iterations):
-        requests = getReqRouteDict(truckRouteList,iteration)
+        requests = getReqRouteDict(truckRouteList)
         numOfTrucks = calcTrucksPerDay(truckRouteList)
         prevTechCosts = calcTechCost(techRouteList)
 
@@ -754,6 +754,7 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations):
         finalTechRouteList = techRouteList
         VALID=None
 
+        #create subsets based on the iterations
         stepSize = int(len(Requests)/ iterations)
         a = iteration * stepSize + 1
         b = (iteration + 1) * stepSize + 1
@@ -761,7 +762,7 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations):
         requests = dict((i,requests[i]) for i in subset if i in requests)
 
         Route.Lock = True
-        for i in range(a, b):
+        for i in range(a, b):                   #this has to be adapted if we want to use unordered sets of keys
             for j in range(a, b):
                 if i != j:
                     route1 = requests[i][1]
@@ -1033,12 +1034,11 @@ mainList = getMainList(truckRoutes)
 #reqRouteDict = getReqRouteDict(truckRouteList)
 
 requestDict = getReqDict(mainList)
-techRoutes = techniciansSchedule(requestDict)
 
 RESET_WORKDAYS = True
 techRoutes = techniciansSchedule(requestDict)
 
-(mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,10)
+#(mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,10)
 
 '''
 for day in techRoutes:
