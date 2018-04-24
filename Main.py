@@ -11,9 +11,9 @@ import os
 import subprocess
 
 
-random.seed(2019)
+random.seed(2018)
 
-File= "Instances/CO2018_3.txt"
+File= "Instances/CO2018_10.txt"
 Instance=passInstance(File,False)
 
 Dataset = Instance.Dataset
@@ -275,7 +275,7 @@ class Route(object):
         def addFirst(self,request,routeType):
             newFirst=request.customerLocID
             oldFirst=self.seq[0].customerLocID
-            dist= Distances[self.homebase][newFirst-1] + Distances[newFirst-1][oldFirst-1] - Distances[self.homebase][oldFirst-1]
+            dist= self.dist + Distances[self.homebase][newFirst-1] + Distances[newFirst-1][oldFirst-1] - Distances[self.homebase][oldFirst-1]
 
             if routeType == 'truck':
                 load=request.totalSize+self.load
@@ -658,7 +658,7 @@ def combineRoutes(truckRoutes):
         finishedSolution.append(sortedRoutes[0])
     return finishedSolution
 
-def QuickRoute(method=1):
+def QuickRoute(method=2):
     # QuickRoute (I made this up): Prints routing solution which considers time windows
     # This is a stochastic algorithm and requires being run multiple times to get a good solution
     routes=[]
@@ -696,8 +696,6 @@ def QuickRoute(method=1):
                             OnDay[j].remove(toAdd) 
             r.day=i+1
             routes.append(r)
-            if(MERGE_ROUTES):
-                routes=combine(routes)
     return(routes)
 
 def QuickRouteAlgorithm(iterations=1,method=2):
@@ -705,12 +703,13 @@ def QuickRouteAlgorithm(iterations=1,method=2):
     optRoutes=[]
 
     for i in range(iterations):
-        #print(i)
+        print(i)
         routes=QuickRoute(method)
         cost=getDistanceOfRoute(routes)
         if(cost<optCost):
             optCost=cost
             optRoutes=routes
+            print(cost)
     return(optRoutes)
 
 def combQuickSavings(iterations=1):
@@ -718,6 +717,7 @@ def combQuickSavings(iterations=1):
     optRoutes = []
 
     for i in range(iterations):
+        print(i)
         OnDay = [[] for i in range(0, Days)]
         schedules=[(list(range(r.fromDay,r.toDay+1)),r) for r in Requests]
         for s in schedules:
@@ -754,9 +754,13 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations,sampleSize):
         VALID=None
 
         #create subsets based on the iterations
-        stepSize = int(len(Requests)/ iterations)
-        a = random.randint(1,len(Requests)-sampleSize-1)
-        b = a+sampleSize
+
+        if(sampleSize==None):
+            a = 1
+            b = len(Requests)-1
+        else:
+            a = random.randint(1,len(Requests)-sampleSize-1)
+            b = a+sampleSize
         subset = list(range(a,b))
         requests = dict((i,requests[i]) for i in subset if i in requests)
 
@@ -818,6 +822,7 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations,sampleSize):
                         else:
                             newTechRouteList = techRouteList
 
+
                         if (COST_IMP < costImprovement):
                             COST_IMP = costImprovement
                             finalRoute1 = route1
@@ -855,7 +860,7 @@ def improveTruckSolution(truckRouteList,techRouteList,iterations,sampleSize):
             print("i: ", iteration, "\t improves: ",COST_IMP)
         else:
             print("i: ", iteration, "\t No Improvement")
-            #return (truckRouteList,techRouteList)
+            # return truckRouteList
 
         # print(COST_IMP
         # print("\n")
@@ -882,7 +887,6 @@ def getMaxIndices(numberList):
     return maxList
 
 def calcTechCost(techList):
-
     return calcTotTechDist(techList) * TechnicianDistanceCost + sum(calcTechsPerDay(techList)) * TechnicianDayCost + calcIndividualTechsUsed(techList) * TechnicianCost
 
 def calcTruckCost(truckList):
@@ -1014,14 +1018,13 @@ def backToMainList(reqDict):
 ############OPERATIONS FROM HERE############:
 
 
-MERGE_ROUTES=False
 
 get_size_per_request()     #Assigns to each request the total size of the request
 Distances= getDistMatrix() #Builds distance matrix
 
 
 #---------------TRUCKS--------------
-# truckRoutes = combQuickSavings(iterations=100)
+# truckRoutes = combQuickSavings(iterations=1000)
 truckRoutes=QuickRouteAlgorithm(100,1)
 # truckRoutes=savingsAlgorithm(timeWindow=True)
 #print("After first algorithm")
@@ -1031,43 +1034,21 @@ truckRoutes=QuickRouteAlgorithm(100,1)
 #----------------ROUTE OPTIMIZER--------------
 mainList = getMainList(truckRoutes)
 
-#reqRouteDict = getReqRouteDict(truckRouteList)
+
+RESET_WORKDAYS = False
+MERGE_ROUTES=True
 
 requestDict = getReqDict(mainList)
-
-RESET_WORKDAYS = True
 techRoutes = techniciansSchedule(requestDict)
-
-(mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,iterations=100,sampleSize=10)
-
-'''
-for day in techRoutes:
-    for route in day:
-        print(route[1].day)
-        route[1].printSeq()
-'''
-#reqRouteDict=improveTruckSolution(reqRouteDict,200)
-
-#mainList = backToMainList(reqRouteDict)
+(mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,iterations=10,sampleSize=10)
+# (mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,iterations=10,sampleSize=30)
+# (mainList,techRoutes) = improveTruckSolution(mainList,techRoutes,iterations=10,sampleSize=50)
 
 
-#requestDict = transformReqToTime(reqRouteDict)
-
-
-#---------------TECHNICIANS-----------------
-
-# t = time.time()
-
-
-#print(techRoutes)
-# elapsed = time.time() - t
-print("Calculating Total truck distance")
-print(calcTotalDistanceTrucks(mainList))
+for day in range(len(mainList)-1):
+    mainList[day]=combine(mainList[day])
 
 printSolution()
-# print("SECONDS:",elapsed, '\n')
-
-# #run the solutionfile to get solutioncost:
 var = os.system('python3 SolutionVerolog2019.py ' + '-s ' +"SOLUTION_"+str(File[-5:-4])+".txt " + '-i ' + File)
 
 
